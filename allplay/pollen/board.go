@@ -144,7 +144,7 @@ func (b *Board) CardLocationsPlayable() map[Position]struct{} {
 	return positions
 }
 
-func (b *Board) Render(w io.Writer) error {
+func (b *Board) Render(w io.Writer, p *Player) error {
 	boardTmpl := template.New("board")
 	boardTmpl = boardTmpl.Funcs(template.FuncMap{
 		"tokenStyle": func(token *PollinatorToken, position Position) string {
@@ -168,6 +168,8 @@ func (b *Board) Render(w io.Writer) error {
 	})
 
 	boardTmpl = template.Must(boardTmpl.Parse(`
+	{{ $debug :=.Debug }}
+	{{ $player :=.Player}}
 	<!DOCTYPE html>
 		<head>
 			<style>
@@ -218,7 +220,9 @@ func (b *Board) Render(w io.Writer) error {
 						<div class="card" style="{{ cardStyle $card $position }}">
                             <div>
 								<img class="card" src="/images/{{ $card.Name }}.png" title="{{ $card.Name }}">
-								<div class="centered"> Position {{ $position }}</div>
+								{{ if $debug }}
+									<div class="centered"> Position {{ $position }}</div>
+								{{end}}
 								</img>
 							</div>
 						</div>
@@ -231,7 +235,11 @@ func (b *Board) Render(w io.Writer) error {
 					{{range $position, $empty := .PlayableCards}}
 						<div class="playableCard" style="{{ playableStyle $position 0 }}">
                             <div>
-								<div class="centered"> Position {{ $position }}</div>
+								<img class="card" src="/images/Back_{{$player.Color}}.png">
+									{{ if $debug }}
+										<div class="centered"> Position {{ $position }}</div>
+									{{end}}
+								</img>
 							</div>
 						</div>
 					{{end}}
@@ -245,5 +253,7 @@ func (b *Board) Render(w io.Writer) error {
 		Cards         map[Position]*GardenCard
 		Tokens        map[Position]*PollinatorToken
 		PlayableCards map[Position]struct{}
-	}{b.cards, b.tokens, b.CardLocationsPlayable()})
+		Debug         bool
+		Player        *Player
+	}{b.cards, b.tokens, b.CardLocationsPlayable(), false, p})
 }

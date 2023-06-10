@@ -1,8 +1,6 @@
 package main
 
 import (
-	"bytes"
-	"io"
 	"log"
 	"net/http"
 
@@ -113,25 +111,18 @@ func main() {
 			panic(err)
 		}
 
-		// err = g.PlayCard("JAMES", g.GetHand("JAMES")[0].ID, pollen.Position{-1.5, -1.5})
-		// if err != nil {
-		// 	panic(err)
-		// }
-
-		buff := bytes.NewBuffer(nil)
-
-		wr := io.MultiWriter(buff, w)
-		err = g.Render(wr)
+		err = g.PlayCard("JAMES", g.GetHand("JAMES")[0].ID, pollen.Position{-1.5, -1.5})
 		if err != nil {
 			panic(err)
 		}
-		// log.Println(buff.String())
+
+		err = g.Render(w)
+		if err != nil {
+			panic(err)
+		}
 	})
 
-	// http.Handle("/images", http.StripPrefix("./pollen/images", http.FileServer(http.Dir("./pollen/images"))))
-	http.HandleFunc("/images/", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "./pollen/images/card.png")
-	})
+	http.Handle("/images/", http.StripPrefix("/images/", http.FileServer(http.Dir("./pollen/images/"))))
 
 	http.ListenAndServe(":8080", nil)
 }

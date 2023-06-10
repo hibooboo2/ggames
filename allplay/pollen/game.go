@@ -105,5 +105,5 @@ func (g *Game) PlayToken(username string, token *PollinatorToken, position Posit
 }
 
 func (g *Game) Render(w io.Writer) error {
-	return g.board.Render(w)
+	return g.board.Render(w, g.activePlayer())
 }
