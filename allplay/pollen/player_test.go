@@ -1,16 +1,20 @@
 package pollen
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
 
 func TestPlayerEmptyDeckAndHand(t *testing.T) {
 	p := NewPlayer("JAMES", 2, Green)
 
+	card := p.Hand[0]
 	for len(p.Hand) > 0 {
-		card := p.Hand[0]
-		c, err := p.PlayCard(card.ID)
-		if err != nil {
-			t.Error(err)
-		}
-		t.Error(c.Color, c.ID, c.Type, c.Value)
+		card = p.Hand[0]
+		_, err := p.PlayCard(card.ID)
+		require.NoError(t, err)
 	}
+	_, err := p.PlayCard(card.ID)
+	require.Error(t, err)
 }

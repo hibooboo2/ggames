@@ -1,0 +1,43 @@
+.center {
+    background-color: red;
+    position: relative;
+    left: 50%;
+    top: 50%;
+}
+
+.token {
+    width: 20px;
+    height: 20px;
+    border-radius: 100%;
+    position: absolute;
+    font-size: 4px;
+}
+
+.card {
+    width: 50px;
+    height: 50px;
+    position: absolute;
+}
+
+.playableCard {
+    width: 50px;
+    height: 50px;
+    position: absolute;
+}
+
+.board {
+    position: absolute;
+    top: 0px;
+    right: 0px;
+    bottom: 0px;
+    left: 0px;
+}
+
+.centered {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #00FF00;
+    font-size: 5px;
+}

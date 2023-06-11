@@ -14,19 +14,23 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-func NewGame(users []PlayerInput) *Game {
+func NewGame(id uuid.UUID, users []string) *Game {
 	g := &Game{
-		id:       uuid.Must(uuid.NewV4()),
+		id:       id,
 		tokenBag: NewTokenBag(),
 	}
 	for i, user := range users {
-		g.players = append(g.players, NewPlayer(user.Username, len(users), Color(i)))
+		g.players = append(g.players, NewPlayer(user, len(users), Color(i)))
 	}
 	for _, p := range g.players {
 		log.Println(p.Username, p.Color)
 	}
 	g.board = NewBoard(g.tokenBag.GetToken())
 	return g
+}
+
+func (g *Game) GetID() uuid.UUID {
+	return g.id
 }
 
 type Game struct {
@@ -53,6 +57,13 @@ func (g *Game) NextPlayer() error {
 	}
 	g.activePlayerCursor += 1
 	return nil
+}
+
+func (g *Game) MustPlayTokens() []Position {
+	if g.board.MustPlayToken() == nil {
+		return nil
+	}
+	return g.board.GetTokensMustPlay()
 }
 
 func (g *Game) PlayCard(username string, card uuid.UUID, position Position) error {
@@ -105,5 +116,5 @@ func (g *Game) PlayToken(username string, token *PollinatorToken, position Posit
 }
 
 func (g *Game) Render(w io.Writer) error {
-	return g.board.Render(w, g.activePlayer())
+	return g.board.Render(w, g.activePlayer(), g)
 }

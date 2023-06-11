@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strconv"
+	"strings"
 	"text/template"
 )
 
@@ -15,6 +17,30 @@ type Board struct {
 type Position struct {
 	X float64
 	Y float64
+}
+
+func (p *Position) Enc() string {
+	return fmt.Sprintf("%f:%f", p.X, p.Y)
+}
+
+func ParsePosition(s string) (*Position, error) {
+	splitVar := strings.Split(s, ":")
+	if len(splitVar) != 2 {
+		return nil, fmt.Errorf("invalid position: %q", s)
+	}
+	x, err := strconv.ParseFloat(splitVar[0], 64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid float x: %q", splitVar[0])
+	}
+	y, err := strconv.ParseFloat(splitVar[1], 64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid float y: %q", splitVar[1])
+	}
+
+	return &Position{
+		X: x,
+		Y: y,
+	}, nil
 }
 
 func NewBoard(token *PollinatorToken) *Board {
@@ -35,23 +61,42 @@ func (b *Board) MustPlayToken() error {
 	if len(b.cards) == 0 {
 		return nil
 	}
+	positions := b.GetTokensMustPlay()
+	if len(positions) == 0 {
+		return nil
+	}
+	return fmt.Errorf("must play tokens at the following positions: %v", positions)
+}
+
+func (b *Board) GetTokensMustPlay() []Position {
+	if len(b.cards) == 0 {
+		return nil
+	}
+	tokensMustPlay := map[Position]struct{}{}
 	for position, _ := range b.cards {
 		nw := Position{position.X + 0.5, position.Y + 0.5}
 		sw := Position{position.X + 0.5, position.Y - 0.5}
 		ne := Position{position.X - 0.5, position.Y + 0.5}
 		se := Position{position.X - 0.5, position.Y - 0.5}
-		switch {
-		case b.CanPlayToken(nw) == nil:
-			return fmt.Errorf("must play token at position %v", nw)
-		case b.CanPlayToken(sw) == nil:
-			return fmt.Errorf("must play token at position %v", sw)
-		case b.CanPlayToken(ne) == nil:
-			return fmt.Errorf("must play token at position %v", ne)
-		case b.CanPlayToken(se) == nil:
-			return fmt.Errorf("must play token at position %v", se)
+
+		if b.CanPlayToken(nw) == nil {
+			tokensMustPlay[nw] = struct{}{}
+		}
+		if b.CanPlayToken(sw) == nil {
+			tokensMustPlay[sw] = struct{}{}
+		}
+		if b.CanPlayToken(ne) == nil {
+			tokensMustPlay[ne] = struct{}{}
+		}
+		if b.CanPlayToken(se) == nil {
+			tokensMustPlay[se] = struct{}{}
 		}
 	}
-	return nil
+	var positions []Position
+	for position := range tokensMustPlay {
+		positions = append(positions, position)
+	}
+	return positions
 }
 
 func (b *Board) PlayToken(position Position, token *PollinatorToken) error {
@@ -144,7 +189,7 @@ func (b *Board) CardLocationsPlayable() map[Position]struct{} {
 	return positions
 }
 
-func (b *Board) Render(w io.Writer, p *Player) error {
+func (b *Board) Render(w io.Writer, p *Player, g *Game) error {
 	boardTmpl := template.New("board")
 	boardTmpl = boardTmpl.Funcs(template.FuncMap{
 		"tokenStyle": func(token *PollinatorToken, position Position) string {
@@ -170,48 +215,10 @@ func (b *Board) Render(w io.Writer, p *Player) error {
 	boardTmpl = template.Must(boardTmpl.Parse(`
 	{{ $debug :=.Debug }}
 	{{ $player :=.Player}}
+	{{ $gameid :=.GameID}}
 	<!DOCTYPE html>
 		<head>
-			<style>
-                .center {
-                    background-color: red;
-					position: relative;
-					left: 50%;
-					top: 50%;
-                }
-				.token {
-					width: 20px;
-					height: 20px;
-					border-radius: 100%;
-					position: absolute;
-					font-size: 4px;
-				}
-				.card {
-					width: 50px;
-					height: 50px;
-					position: absolute;
-				}
-				.playableCard {
-					width: 50px;
-					height: 50px;
-					position: absolute;
-				}
-				.board {
-					position:absolute;
-					top:0px;
-					right:0px;
-					bottom:0px;
-					left:0px;
-				}
-				.centered {
-					position: absolute;
-					top: 50%;
-					left: 50%;
-					transform: translate(-50%, -50%);
-					color: #00FF00;
-					font-size: 5px;
-				}
-			</style>
+			<link rel="stylesheet" href="/static/css/main.css">
 		</head>
 		<body>
             <div class="board">
@@ -219,7 +226,7 @@ func (b *Board) Render(w io.Writer, p *Player) error {
 					{{range $position, $card :=.Cards}}
 						<div class="card" style="{{ cardStyle $card $position }}">
                             <div>
-								<img class="card" src="/images/{{ $card.Name }}.png" title="{{ $card.Name }}">
+								<img class="card" src="/static/images/{{ $card.Name }}.png" title="{{ $card.Name }}">
 								{{ if $debug }}
 									<div class="centered"> Position {{ $position }}</div>
 								{{end}}
@@ -233,9 +240,9 @@ func (b *Board) Render(w io.Writer, p *Player) error {
 						</div>
 					{{end}}
 					{{range $position, $empty := .PlayableCards}}
-						<div class="playableCard" style="{{ playableStyle $position 0 }}">
+						<div class="playableCard" style="{{ playableStyle $position 0 }}" onclick="window.location.href='/game/{{$gameid}}/play/card/{{$gameid}}?position={{$position.Enc}}'">
                             <div>
-								<img class="card" src="/images/Back_{{$player.Color}}.png">
+								<img class="card" src="/static/images/Back_{{$player.Color}}.png">
 									{{ if $debug }}
 										<div class="centered"> Position {{ $position }}</div>
 									{{end}}
@@ -255,5 +262,6 @@ func (b *Board) Render(w io.Writer, p *Player) error {
 		PlayableCards map[Position]struct{}
 		Debug         bool
 		Player        *Player
-	}{b.cards, b.tokens, b.CardLocationsPlayable(), false, p})
+		GameID        string
+	}{b.cards, b.tokens, b.CardLocationsPlayable(), false, p, g.id.String()})
 }
