@@ -4,5 +4,5 @@ import "time"
 
 const (
 	SessionCookieName = "Session-ID"
-	SessionTimeout    = 24 * time.Hour
+	SessionTimeout    = time.Minute * 5
 )

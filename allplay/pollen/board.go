@@ -189,73 +189,63 @@ func (b *Board) CardLocationsPlayable() map[Position]struct{} {
 	return positions
 }
 
-func (b *Board) Render(w io.Writer, p *Player, g *Game) error {
-	boardTmpl := template.New("board")
-	boardTmpl = boardTmpl.Funcs(template.FuncMap{
-		"tokenStyle": func(token *PollinatorToken, position Position) string {
-			tokenStyle := fmt.Sprintf(`background-color: %s; left: %dpx; bottom: %dpx;`,
-				token.Type.Color(), int((position.X*2*25)+15), int((position.Y*2*25)+15))
-			log.Println(tokenStyle)
-			return tokenStyle
-		},
-		"cardStyle": func(card *GardenCard, position Position) string {
-			tokenStyle := fmt.Sprintf(`background-color: %s; left: %dpx; bottom: %dpx;`,
-				card.Color, int(position.X*2*25), int(position.Y*2*25))
-			log.Println(tokenStyle)
-			return tokenStyle
-		},
-		"playableStyle": func(position Position, o interface{}) string {
-			tokenStyle := fmt.Sprintf(`background-color: orange; opacity: 0.5; left: %dpx; bottom: %dpx;`,
-				int(position.X*2*25), int(position.Y*2*25))
-			log.Println(tokenStyle)
-			return tokenStyle
-		},
-	})
-
-	boardTmpl = template.Must(boardTmpl.Parse(`
+var boardTmpl = template.Must(template.New("board").Funcs(template.FuncMap{
+	"tokenStyle": func(token *PollinatorToken, position Position) string {
+		tokenStyle := fmt.Sprintf(`background-color: %s; left: %dpx; bottom: %dpx;`,
+			token.Type.Color(), int((position.X*2*25)+15), int((position.Y*2*25)+15))
+		log.Println(tokenStyle)
+		return tokenStyle
+	},
+	"cardStyle": func(card *GardenCard, position Position) string {
+		tokenStyle := fmt.Sprintf(`background-color: %s; left: %dpx; bottom: %dpx;`,
+			card.Color, int(position.X*2*25), int(position.Y*2*25))
+		log.Println(tokenStyle)
+		return tokenStyle
+	},
+	"playableStyle": func(position Position, o interface{}) string {
+		tokenStyle := fmt.Sprintf(`background-color: orange; opacity: 0.5; left: %dpx; bottom: %dpx;`,
+			int(position.X*2*25), int(position.Y*2*25))
+		log.Println(tokenStyle)
+		return tokenStyle
+	},
+}).Parse(`
 	{{ $debug :=.Debug }}
 	{{ $player :=.Player}}
 	{{ $gameid :=.GameID}}
-	<!DOCTYPE html>
-		<head>
-			<link rel="stylesheet" href="/static/css/main.css">
-		</head>
-		<body>
-            <div class="board">
-				<div class="center">
-					{{range $position, $card :=.Cards}}
-						<div class="card" style="{{ cardStyle $card $position }}">
-                            <div>
-								<img class="card" src="/static/images/{{ $card.Name }}.png" title="{{ $card.Name }}">
-								{{ if $debug }}
-									<div class="centered"> Position {{ $position }}</div>
-								{{end}}
-								</img>
-							</div>
-						</div>
-					{{end}}
-					{{range $position, $token :=.Tokens}}
-						<div class="token" style="{{ tokenStyle $token $position }}">
-							{{$token.Type}}
-						</div>
-					{{end}}
-					{{range $position, $empty := .PlayableCards}}
-						<div class="playableCard" style="{{ playableStyle $position 0 }}" onclick="window.location.href='/game/{{$gameid}}/play/card/{{$gameid}}?position={{$position.Enc}}'">
-                            <div>
-								<img class="card" src="/static/images/Back_{{$player.Color}}.png">
-									{{ if $debug }}
-										<div class="centered"> Position {{ $position }}</div>
-									{{end}}
-								</img>
-							</div>
-						</div>
-					{{end}}
+	<div class="board">
+		<div class="center">
+			{{range $position, $card :=.Cards}}
+				<div class="card" style="{{ cardStyle $card $position }}">
+					<div>
+						<img class="card" src="/static/images/{{ $card.Name }}.png" title="{{ $card.Name }}">
+						{{ if $debug }}
+							<div class="centered"> Position {{ $position }}</div>
+						{{end}}
+						</img>
+					</div>
 				</div>
-			</div>
-		<body>
-	<html>
+			{{end}}
+			{{range $position, $token :=.Tokens}}
+				<div class="token" style="{{ tokenStyle $token $position }}">
+					{{$token.Type}}
+				</div>
+			{{end}}
+			{{range $position, $empty := .PlayableCards}}
+				<div class="playableCard" style="{{ playableStyle $position 0 }}" onclick="playCard({{$gameid}},{{$position}})">
+					<div>
+						<img class="card" src="/static/images/Back_{{$player.Color}}.png">
+							{{ if $debug }}
+								<div class="centered"> Position {{ $position }}</div>
+							{{end}}
+						</img>
+					</div>
+				</div>
+			{{end}}
+		</div>
+	</div>
 	`))
 
+func (b *Board) Render(w io.Writer, p *Player, g *Game) error {
 	return boardTmpl.Execute(w, struct {
 		Cards         map[Position]*GardenCard
 		Tokens        map[Position]*PollinatorToken

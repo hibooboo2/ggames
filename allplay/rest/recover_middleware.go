@@ -12,7 +12,7 @@ func Recover(handler http.Handler) http.Handler {
 		defer func() {
 			if r := recover(); r != nil {
 				stack := debug.Stack()
-				ResponndJson(w, http.StatusInternalServerError, map[string]string{
+				RespondJson(w, http.StatusInternalServerError, map[string]string{
 					"panic": fmt.Sprintf("%v", r),
 					"stack": string(stack),
 				})

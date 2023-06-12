@@ -12,6 +12,7 @@ var ErrNoCard = errors.New("player has no card")
 type Player struct {
 	Color    Color
 	Username string
+	Events   chan struct{}
 	Hand     []GardenCard
 	Deck     *GardenDeck
 }
@@ -20,6 +21,7 @@ func NewPlayer(username string, numPlayers int, color Color) *Player {
 	p := &Player{
 		Color:    color,
 		Username: username,
+		Events:   make(chan struct{}, 10),
 		Deck:     NewGardenDeck(numPlayers, color),
 	}
 	p.Hand = p.Deck.cards[:5]

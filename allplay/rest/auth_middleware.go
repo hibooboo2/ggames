@@ -2,14 +2,12 @@ package rest
 
 import (
 	"context"
-	"fmt"
+	"encoding/base64"
 	"log"
 	"net/http"
 	"strings"
 	"text/template"
-	"time"
 
-	"github.com/gofrs/uuid"
 	"github.com/hibooboo2/ggames/allplay/pollen/constants"
 	"github.com/hibooboo2/ggames/allplay/pollen/db"
 )
@@ -28,47 +26,24 @@ func GetUsername(r *http.Request) string {
 
 func BasicAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		username, c, isLoggedIn := db.IsLoggedIn(r)
-
-		tempID := r.FormValue("anonymous")
-		if !isLoggedIn && tempID != "" && db.IsTempID(tempID) {
-			log.Println("No active session and tempID found, creating temporary session")
-			tmpID := uuid.Must(uuid.NewV4())
-			err := db.RegisterUser(fmt.Sprintf("%s@jhrb.us", tmpID.String()), tmpID.String(), tmpID.String())
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			c, err := db.Login(tmpID.String(), tmpID.String(), time.Hour*24*7)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			http.SetCookie(w, c)
-
-			r = r.WithContext(context.WithValue(r.Context(), userCtxKey, tmpID.String()))
-			next.ServeHTTP(w, r)
-			return
-		}
-
-		if isLoggedIn && tempID != "" {
-			db.InvalidateTempID(tempID)
-		}
-
+		username, c, isLoggedIn := db.IsLoggedIn(r, false)
 		if !isLoggedIn {
 			log.Println("Must login first")
-			http.SetCookie(w, &http.Cookie{
-				Name:   constants.SessionCookieName,
-				Value:  "",
-				MaxAge: -1,
-			})
-			http.Redirect(w, r, "/login", http.StatusFound)
+			switch r.URL.Path {
+			case "/":
+				http.Redirect(w, r, "/login", http.StatusSeeOther)
+				return
+			}
+			RespondError(w, http.StatusUnauthorized, "you must login first")
 			return
 		}
 
-		http.SetCookie(w, c)
-
 		r = r.WithContext(context.WithValue(r.Context(), userCtxKey, username))
+
+		http.SetCookie(w, c)
+		c2 := *c
+		c2.Path = "/game/play/"
+		http.SetCookie(w, &c2)
 		next.ServeHTTP(w, r)
 	})
 }
@@ -79,38 +54,47 @@ var loginPage = template.Must(template.New("login").Parse(`
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="/static/css/login.css">
+<script src="/static/js/functions.js"></script>
 </head>
 <body>
 
 <h2>Login To Allplay Games</h2>
 
-<form action="/login" method="post">
-<div class="imgcontainer">
-	<img src="/static/images/Back_Green.png" alt="Pollen card" class="avatar">
-</div>
+<div class="center">
+	<form action="/login" method="post">
+	<div class="imgcontainer">
+		<img src="/static/images/Back_Green.png" alt="Pollen card" class="avatar">
+	</div>
 
-<div class="container">
-	<label for="uname"><b>Username</b></label>
-	<input type="text" placeholder="Enter Username" name="uname" required>
+	<div class="container">
+		{{ if .IsLoggedIn }}
+			<button type="button" class="logout" onclick='logout()'>
+				Logout
+			</button>
+		{{ else }}
+			<label for="uname"><b>Username</b></label>
+			<input type="text" placeholder="Enter Username" name="uname" required>
 
-	<label for="psw"><b>Password</b></label>
-	<input type="password" placeholder="Enter Password" name="psw" required>
-		
-	{{ if .Invalid }}
-		<label class="warning"><b>Invalid username or password</b></label>
-	{{end}}
-	<button type="submit">Login</button>
-	<label>
-	<input type="checkbox" checked="checked" name="remember"> Remember me
-	</label>
-</div>
+			<label for="psw"><b>Password</b></label>
+			<input type="password" placeholder="Enter Password" name="psw" required>
+				
+			{{ if .Invalid }}
+				<label class="warning"><b>Invalid username or password</b></label>
+			{{end}}
+			<button type="submit">Login</button>
+			<label>
+			<input type="checkbox" checked="checked" name="remember"> Remember me
+			</label>
+		{{ end }}
+	</div>
 
-<div class="container" style="background-color:#f1f1f1">
-	<button type="button" class="cancelbtn">Cancel</button>
-	<span class="register">No account? <a href="/register">Signup</a></span>
-	<span class="psw">Forgot <a href="#">password?</a></span>
+	<div class="container" style="background-color:#f1f1f1">
+		<button type="button" class="cancelbtn">Cancel</button>
+		<span class="register">No account? <a href="/register">Signup</a></span>
+		<span class="psw">Forgot <a href="#">password?</a></span>
+	</div>
+	</form>
 </div>
-</form>
 
 </body>
 </html>
@@ -121,33 +105,42 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println(r.Method)
 	switch strings.ToUpper(r.Method) {
 	case http.MethodGet:
+		_, _, isLoggedIn := db.IsLoggedIn(r, false)
 		loginPage.Execute(w, struct {
-			Invalid bool
+			Invalid    bool
+			IsLoggedIn bool
 		}{
 			r.URL.Query().Get("invalid") == "true",
+			isLoggedIn,
 		})
 	case http.MethodPost:
 		username := r.FormValue("uname")
-		if username == "" {
-			http.Error(w, "Username is required", http.StatusBadRequest)
-			return
-		}
 		password := r.FormValue("psw")
-		if password == "" {
-			http.Error(w, "Invalid password", http.StatusBadRequest)
+		if username == "" || password == "" {
+			http.Redirect(w, r, "/login?invalid=true", http.StatusSeeOther)
 			return
 		}
 
-		c, err := db.Login(username, password, constants.SessionTimeout)
+		us, err := db.Login(username, password, constants.SessionTimeout, true)
 		if err != nil {
-			http.Redirect(w, r, "/login?invalid=true", http.StatusFound)
+			http.Redirect(w, r, "/login?invalid=true", http.StatusSeeOther)
 			return
 		}
 
+		http.SetCookie(w, us.Cookie())
 		log.Println("Logged in")
-		http.SetCookie(w, c)
 		http.Redirect(w, r, "/", http.StatusFound)
 	}
+
+}
+
+func basicAuthEnc(username, password string) string {
+	auth := username + ":" + password
+	return base64.StdEncoding.EncodeToString([]byte(auth))
+}
+
+func Logout(w http.ResponseWriter, r *http.Request) {
+
 }
 
 func Register(w http.ResponseWriter, r *http.Request) {

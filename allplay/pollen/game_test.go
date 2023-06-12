@@ -8,7 +8,11 @@ import (
 )
 
 func TestGame(t *testing.T) {
-	g := NewGame(uuid.Must(uuid.NewV4()), []string{"JAMES", "RAE"})
+	g := NewGame(uuid.Must(uuid.NewV4()))
+	g.AddPlayer("JAMES")
+	g.AddPlayer("RAE")
+	require.NoError(t, g.Start())
+
 	err := g.PlayCard("JAMES", g.GetHand("JAMES")[0].ID, Position{0.5, 0.5})
 	require.NoError(t, err)
 
@@ -82,7 +86,10 @@ func TestGame(t *testing.T) {
 }
 
 func TestMustPlayToken(t *testing.T) {
-	g := NewGame(uuid.Must(uuid.NewV4()), []string{"JAMES", "RAE"})
+	g := NewGame(uuid.Must(uuid.NewV4()))
+	g.AddPlayer("JAMES")
+	g.AddPlayer("RAE")
+	require.NoError(t, g.Start())
 
 	err := g.PlayCard("JAMES", g.GetHand("JAMES")[0].ID, Position{0.5, 0.5})
 	require.NoError(t, err)

@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-func ResponndJson(w http.ResponseWriter, code int, data interface{}) {
+func RespondJson(w http.ResponseWriter, code int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(code)
 	if err := json.NewEncoder(w).Encode(data); err != nil {
@@ -13,7 +13,7 @@ func ResponndJson(w http.ResponseWriter, code int, data interface{}) {
 	}
 }
 
-func ResponndError(w http.ResponseWriter, code int, msg string) {
+func RespondError(w http.ResponseWriter, code int, msg string) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(code)
 	if err := json.NewEncoder(w).Encode(map[string]interface{}{

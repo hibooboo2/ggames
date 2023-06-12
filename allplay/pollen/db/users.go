@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -24,16 +25,29 @@ type UserSession struct {
 	Expiry   time.Time
 }
 
-func init() {
-	RegisterUser("root@jhrb.us", "root", "root")
-}
-
 func (s *UserSession) Cookie() *http.Cookie {
 	return &http.Cookie{
 		Name:    constants.SessionCookieName,
 		Value:   s.ID,
 		Expires: s.Expiry,
+		Path:    "/",
 	}
+}
+
+func init() {
+	RegisterUser("jj@jhrb.us", "jj", "jj")
+	RegisterUser("ff@jhrb.us", "ff", "ff")
+}
+
+func (s *UserSession) MustReauthenticate() bool {
+	if time.Now().After(s.Expiry) {
+		return true
+	}
+	_, idUUID := uuid.FromString(s.Username)
+	if idUUID == nil {
+		s.Expiry = time.Now().Add(constants.SessionTimeout)
+	}
+	return false
 }
 
 func RegisterUser(email, username, password string) error {
@@ -61,9 +75,22 @@ func CheckPassword(username string, password string) bool {
 	return subtle.ConstantTimeCompare(passwordHash[:], passHash[:]) == 1
 }
 
-func Login(username string, password string, timeout time.Duration) (*http.Cookie, error) {
+func Login(username string, password string, timeout time.Duration, newSession bool) (*UserSession, error) {
 	if !CheckPassword(username, password) {
 		return nil, errors.New("invalid username or password")
+	}
+
+	if !newSession {
+		for _, s := range sessions {
+			if s.Username == username {
+				if s.MustReauthenticate() {
+					delete(sessions, s.ID)
+					return nil, errors.New("must reauthenticate")
+				}
+				s.Expiry = time.Now().Add(timeout)
+				return s, nil
+			}
+		}
 	}
 
 	sessionID := uuid.Must(uuid.NewV4()).String()
@@ -74,7 +101,7 @@ func Login(username string, password string, timeout time.Duration) (*http.Cooki
 		Expiry:   expires,
 	}
 
-	return sessions[sessionID].Cookie(), nil
+	return sessions[sessionID], nil
 }
 
 func GetTempID() string {
@@ -92,11 +119,50 @@ func InvalidateTempID(tempID string) {
 	delete(tempIDs, tempID)
 }
 
-func IsLoggedIn(r *http.Request) (string, *http.Cookie, bool) {
+func tmpLogin(r *http.Request) (*UserSession, bool) {
+	tempID := r.FormValue("anonymous")
+	if tempID != "" && IsTempID(tempID) {
+		InvalidateTempID(tempID)
+		log.Println("No active session and tempID found, creating temporary session")
+		tmpID := uuid.Must(uuid.NewV4())
+		err := RegisterUser(fmt.Sprintf("%s@jhrb.us", tmpID.String()), tmpID.String(), tmpID.String())
+		if err != nil {
+			log.Println("FAiled to create temporary session: ", err)
+			return nil, false
+		}
+		us, err := Login(tmpID.String(), tmpID.String(), time.Hour*24*7, true)
+		if err != nil {
+			log.Println("Failed to login temporary session: ", err)
+			return nil, false
+		}
+		return us, true
+	}
+	return nil, false
+}
+
+func loginBasicAuth(r *http.Request, newSession bool) (*UserSession, bool) {
+	username, password, ok := r.BasicAuth()
+	log.Println("Basicauth: ", username)
+	if !ok {
+		log.Printf("No basic auth found")
+		return nil, false
+	}
+
+	log.Println("Attempting to login with basic auth: ", username)
+	log.Println("password: ", password)
+	us, err := Login(username, password, constants.SessionTimeout, newSession)
+	if err != nil {
+		log.Printf("Login failed: %q %v", username, err)
+		return nil, false
+	}
+	return us, true
+}
+
+func hasCookieSession(r *http.Request) (*UserSession, bool) {
 	c, err := r.Cookie(constants.SessionCookieName)
 	if err != nil {
 		log.Printf("No cookie found: %v", err)
-		return "", nil, false
+		return nil, false
 	}
 
 	sessionID := c.Value
@@ -104,12 +170,12 @@ func IsLoggedIn(r *http.Request) (string, *http.Cookie, bool) {
 	us, ok := sessions[sessionID]
 	if !ok {
 		log.Println("No session found")
-		return "", nil, false
+		return nil, false
 	}
 	if time.Now().After(us.Expiry) {
 		log.Println("Session expired")
 		delete(sessions, sessionID)
-		return "", nil, false
+		return nil, false
 	}
 
 	_, idUUID := uuid.FromString(us.Username)
@@ -118,5 +184,24 @@ func IsLoggedIn(r *http.Request) (string, *http.Cookie, bool) {
 	}
 
 	log.Println("Is logged in")
+	return us, true
+}
+
+func IsLoggedIn(r *http.Request, newSession bool) (string, *http.Cookie, bool) {
+	us, ok := hasCookieSession(r)
+	if !ok {
+		//basic auth
+		us, ok = loginBasicAuth(r, newSession)
+		if !ok {
+			//tmp auth
+			us, ok = tmpLogin(r)
+		}
+	}
+
+	if !ok {
+		//no auth
+		return "", nil, false
+	}
+
 	return us.Username, us.Cookie(), true
 }

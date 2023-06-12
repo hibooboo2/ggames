@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/gofrs/uuid"
+	"github.com/hibooboo2/ggames/allplay/pollen"
 	"github.com/hibooboo2/ggames/allplay/pollen/db"
 	"github.com/hibooboo2/ggames/allplay/rest"
 )
@@ -21,12 +22,13 @@ func main() {
 	r.HandleFunc("/login", rest.LoginHandler)
 	r.HandleFunc("/register", rest.Register)
 
-	a := r.With(rest.Recover, rest.BasicAuth)
+	a := r.With(rest.LogRequest, rest.Recover, rest.BasicAuth)
 	a.HandleFunc("/", homePage)
 	a.Post("/game", newgame)
 	a.Get("/game/join/{game_id}", joinGame)
 	a.Post("/game/start/{game_id}", startGame)
-	a.Get("/game/{game_id}", renderGame)
+	a.Get("/game/play/{game_id}", playGame)
+	a.Get("/game/{game_id}/render", renderGame)
 	a.Post("/game/{game_id}/play/card/{card_id}", playCard)
 
 	a.Post("/tempID/", rest.TempID)
@@ -46,12 +48,23 @@ func homePage(w http.ResponseWriter, r *http.Request) {
 		    <div id="mainbox">
 				<h1>Welcome to Pollen</h1>
 				<button onclick="newGame()">New Game</button>
+				{{ range $game := .Games }}
+					<a href="/game/play/{{ $game.GetID }}">Play Game</a>
+				{{end}}
 			</div>
 		</body>
 	</html>
 	`))
 
-	homePageTmpl.Execute(w, nil)
+	username := rest.GetUsername(r)
+	activeGames := db.GetActiveGames(username)
+	log.Println("User: ", username, " Active Games: ", len(activeGames))
+
+	homePageTmpl.Execute(w, struct {
+		Games []*pollen.Game
+	}{
+		activeGames,
+	})
 }
 
 func newgame(w http.ResponseWriter, r *http.Request) {
@@ -77,63 +90,109 @@ func newgame(w http.ResponseWriter, r *http.Request) {
 }
 
 func joinGame(w http.ResponseWriter, r *http.Request) {
-	gameID := rest.GetGameID(r)
+	gameID := pollen.GetGameID(r)
 	username := rest.GetUsername(r)
 
 	err := db.AddGameUser(gameID, username)
 	if err != nil {
-		rest.ResponndError(w, http.StatusBadRequest, err.Error())
+		rest.RespondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	rest.ResponndJson(w, http.StatusAccepted, map[string]string{"game": gameID.String(), "AddedUser": username})
+	w.(http.Flusher).Flush()
+	http.Redirect(w, r, "/game/play/"+gameID.String(), http.StatusSeeOther)
 }
 
 func startGame(w http.ResponseWriter, r *http.Request) {
-	gameID := rest.GetGameID(r)
+	gameID := pollen.GetGameID(r)
 
 	username := rest.GetUsername(r)
 
 	err := db.AddGameUser(gameID, username)
 	if err != nil {
-		rest.ResponndError(w, http.StatusBadRequest, err.Error())
+		rest.RespondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	err = db.StartGame(gameID)
 	if err != nil {
-		rest.ResponndError(w, http.StatusBadRequest, err.Error())
+		rest.RespondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	rest.ResponndJson(w, http.StatusCreated, map[string]string{"game": gameID.String(), "status": "started"})
+	http.Redirect(w, r, "/game/play/"+gameID.String(), http.StatusFound)
 }
 
 func renderGame(w http.ResponseWriter, r *http.Request) {
 	var err error
-	gameID := rest.GetGameID(r)
-
+	gameID := pollen.GetGameID(r)
 	g := db.GetGame(gameID)
-
-	err = g.Render(w)
-	if err != nil {
-		panic(err)
+	if g == nil {
+		rest.RespondError(w, http.StatusNotFound, "Game not found")
+		return
 	}
+
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+
+	err = g.Render(w, rest.GetUsername(r))
+	if err != nil {
+		rest.RespondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 func playCard(w http.ResponseWriter, r *http.Request) {
-	gameID := rest.GetGameID(r)
+	gameID := pollen.GetGameID(r)
 	username := rest.GetUsername(r)
 
 	g := db.GetGame(gameID)
 
-	err := g.PlayCard(username, rest.GetCardID(r), rest.GetPosition(r))
+	err := g.PlayCard(username, pollen.GetCardID(r), pollen.GetPosition(r))
 	if err != nil {
-		rest.ResponndError(w, http.StatusBadRequest, err.Error())
+		rest.RespondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	g.NextPlayer()
 
 	w.WriteHeader(http.StatusAccepted)
+}
+
+var playGameTmpl = template.Must(template.New("playgame").Parse(`
+	<!DOCTYPE html>
+	<html>
+        <head>
+			<script src="/static/js/functions.js"> </script>
+			<link rel="stylesheet" href="/static/css/main.css">
+			<meta charset="utf-8">
+		</head>
+		<body>
+		    <div id="mainbox">
+                <h1>Current Game {{.GameID}}</h1>
+				<h2>Playing as {{.Username}}</h2>
+				<div id="gamebox">
+				</div>
+		    </div>
+		</body>
+		<script>
+			renderGame({{.GameID}})
+		</script>
+	</html>
+`))
+
+func playGame(w http.ResponseWriter, r *http.Request) {
+	tmplContext := struct {
+		GameID   string
+		Username string
+	}{
+		pollen.GetGameID(r).String(),
+		rest.GetUsername(r),
+	}
+
+	playGameTmpl.Execute(w, tmplContext)
 }
