@@ -206,11 +206,16 @@ var boardTmpl = template.Must(template.New("board").Funcs(template.FuncMap{
 			int(position.X*2*25), int(position.Y*2*25))
 		return tokenStyle
 	},
+	"handStyle": func(card GardenCard, p int) string {
+		tokenStyle := fmt.Sprintf(`left: %dpx; bottom: 0px;`, p*75)
+		return ""
+		return tokenStyle
+	},
 }).Parse(`
 	{{ $debug :=.Debug }}
 	{{ $player :=.Player}}
 	{{ $gameID :=.GameID}}
-	{{ $cardID :=.CardID}}
+	{{ $isPlayerTurn :=.IsPlayerTurn}}
 	<div class="board">
 		<div class="center">
 			{{range $position, $card :=.Cards}}
@@ -229,9 +234,9 @@ var boardTmpl = template.Must(template.New("board").Funcs(template.FuncMap{
 					{{$token.Type}}
 				</div>
 			{{end}}
-			{{ if $cardID }}
+			{{if $isPlayerTurn}}
 				{{range $position, $empty := .PlayableCards}}
-					<div class="playableCard" style="{{ playableStyle $position 0 }}" onclick='playCard("{{$gameID}}","{{$cardID}}",{{$position.X}},{{$position.Y}})'>
+					<div class="playableCard" style="{{ playableStyle $position 0 }}" onclick='playCard("{{$gameID}}",getCardToPlay(),{{$position.X}},{{$position.Y}})'>
 						<div>
 							<img class="card" src="/static/images/Back_{{$player.Color}}.png">
 								{{ if $debug }}
@@ -240,18 +245,29 @@ var boardTmpl = template.Must(template.New("board").Funcs(template.FuncMap{
 							</img>
 						</div>
 					</div>
-				{{end}}
-			{{end}}
+				{{ end }}
+			{{ end}}
+			<div class="bottom hand">
+				<div class="cardHolder">
+					{{range $cardNum, $card := .Hand}}
+						<div class="handCard" id="{{ $card.ID }}" style="{{ handStyle $card $cardNum }}" onclick='setCardToPlay("{{ $card.ID }}")'>
+							<div>
+								<img class="handCard" id="{{ $card.ID }}_img" src="/static/images/{{ $card.Name }}.png">
+									{{ if $debug }}
+										<div class="centered"> Position {{ $cardNum }}</div>
+									{{end}}
+								</img>
+							</div>
+						</div>
+					{{end}}
+				</div>
+			</div>
 		</div>
 	</div>
 	`))
 
 func (b *Board) Render(w io.Writer, p *Player, g *Game) error {
 	buff := bytes.NewBuffer(nil)
-	card := ""
-	if len(p.Hand) > 0 {
-		card = p.Hand[0].ID.String()
-	}
 
 	err := boardTmpl.Execute(buff, struct {
 		Cards         map[Position]*GardenCard
@@ -260,7 +276,8 @@ func (b *Board) Render(w io.Writer, p *Player, g *Game) error {
 		Debug         bool
 		Player        *Player
 		GameID        string
-		CardID        string
+		Hand          []GardenCard
+		IsPlayerTurn  bool
 	}{
 		b.cards,
 		b.tokens,
@@ -268,7 +285,8 @@ func (b *Board) Render(w io.Writer, p *Player, g *Game) error {
 		false,
 		p,
 		g.id.String(),
-		card,
+		p.Hand,
+		g.activePlayer().Username == p.Username,
 	})
 	if err != nil {
 		return err

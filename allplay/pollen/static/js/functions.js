@@ -64,6 +64,10 @@ function renderGame(gameID) {
 }
 
 function playCard(gameID, cardID, x, y) {
+    if (cardID == "") {
+        alert("You must select a card to play")
+        return
+    }
     console.log("Play Card Called:", gameID, x, y)
     let req = new XMLHttpRequest()
     req.open("POST", "/game/" + gameID + "/play/card/" + cardID + "?position=" + x + ":" + y)
@@ -73,7 +77,24 @@ function playCard(gameID, cardID, x, y) {
             return
         }
         console.log(req.responseText)
+        cardToPlay = ""
     }
     //         /game/{ { $gameid } } /play/card / {{ $gameid }
     // }?position = {{ $position.X }}: { { $position.Y } }
+}
+var cardToPlay = "";
+
+function getCardToPlay() {
+    return cardToPlay
+}
+
+function setCardToPlay(cardID) {
+    if (cardToPlay != "") {
+        document.getElementById(cardToPlay).className = "handCard"
+        document.getElementById(cardToPlay + "_img").className = "handCard"
+    }
+    cardToPlay = cardID
+    document.getElementById(cardToPlay).className = "handCardSelected"
+    document.getElementById(cardToPlay + "_img").className = "handCardSelected"
+
 }

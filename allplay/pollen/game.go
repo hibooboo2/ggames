@@ -265,7 +265,6 @@ func (g *Game) Render(w io.Writer, username string) error {
 	<-g.readyChan
 
 	log.Println("Starting render for", playerToRenderFor.Username)
-	t := time.NewTicker(time.Second * 20)
 	for {
 		err := g.board.Render(w, playerToRenderFor, g)
 		if err != nil {
@@ -276,7 +275,6 @@ func (g *Game) Render(w io.Writer, username string) error {
 		flusher.Flush()
 
 		select {
-		case <-t.C:
 		case <-playerToRenderFor.Events:
 		case <-g.done:
 			return nil

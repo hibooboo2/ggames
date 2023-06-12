@@ -5,6 +5,10 @@
     top: 50%;
 }
 
+.bottom {
+    bottom: 0px;
+}
+
 .token {
     width: 20px;
     height: 20px;
@@ -25,12 +29,34 @@
     position: absolute;
 }
 
+.handCard {
+    width: 75px;
+    height: 75px;
+    opacity: 0.75;
+}
+
+.handCardSelected {
+    width: 75px;
+    height: 75px;
+    border: #00FF00;
+    border-width: 5px;
+}
+
 .board {
     position: absolute;
     top: 0px;
     right: 0px;
     bottom: 0px;
     left: 0px;
+}
+
+.hand {
+    position: fixed;
+    left: 0px;
+}
+
+.cardHolder {
+    display: inline-flex;
 }
 
 .centered {

@@ -91,14 +91,14 @@ func Login(username string, password string, timeout time.Duration, newSession b
 				return s, nil
 			}
 		}
+		return nil, errors.New("session not found")
 	}
 
 	sessionID := uuid.Must(uuid.NewV4()).String()
-	expires := time.Now().Add(timeout)
 	sessions[sessionID] = &UserSession{
 		ID:       sessionID,
 		Username: username,
-		Expiry:   expires,
+		Expiry:   time.Now().Add(timeout),
 	}
 
 	return sessions[sessionID], nil
