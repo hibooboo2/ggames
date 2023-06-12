@@ -29,21 +29,13 @@ func BasicAuth(next http.Handler) http.Handler {
 		username, c, isLoggedIn := db.IsLoggedIn(r, false)
 		if !isLoggedIn {
 			log.Println("Must login first")
-			switch r.URL.Path {
-			case "/":
-				http.Redirect(w, r, "/login", http.StatusSeeOther)
-				return
-			}
-			RespondError(w, http.StatusUnauthorized, "you must login first")
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
 		}
 
 		r = r.WithContext(context.WithValue(r.Context(), userCtxKey, username))
 
 		http.SetCookie(w, c)
-		c2 := *c
-		c2.Path = "/game/play/"
-		http.SetCookie(w, &c2)
 		next.ServeHTTP(w, r)
 	})
 }
@@ -68,7 +60,7 @@ var loginPage = template.Must(template.New("login").Parse(`
 
 	<div class="container">
 		{{ if .IsLoggedIn }}
-			<button type="button" class="logout" onclick='logout()'>
+			<button type="button" class="logout" onclick='window.location.href="/logout"'>
 				Logout
 			</button>
 		{{ else }}
@@ -134,13 +126,19 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func LogoutHandler(w http.ResponseWriter, r *http.Request) {
+	http.SetCookie(w, &http.Cookie{
+		Name:   constants.SessionCookieName,
+		Value:  "",
+		Path:   "/",
+		MaxAge: -1,
+	})
+	http.Redirect(w, r, "/login", http.StatusFound)
+}
+
 func basicAuthEnc(username, password string) string {
 	auth := username + ":" + password
 	return base64.StdEncoding.EncodeToString([]byte(auth))
-}
-
-func Logout(w http.ResponseWriter, r *http.Request) {
-
 }
 
 func Register(w http.ResponseWriter, r *http.Request) {

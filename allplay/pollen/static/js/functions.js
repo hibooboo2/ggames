@@ -1,16 +1,3 @@
-function getBoardForGame(gameID) {
-    let req = new XMLHttpRequest();
-    req.open("GET", "/game/" + gameID);
-    req.send();
-
-    req.onreadystatechange = (e) => {
-        if (req.readyState != 4) {
-            return
-        }
-        document.getElementById("board").innerHTML = req.responseText
-    }
-}
-
 function newGame() {
     let req = new XMLHttpRequest();
     req.open("POST", "/game");
@@ -26,7 +13,7 @@ function newGame() {
 
 function startGame(gameID) {
     let req = new XMLHttpRequest()
-    req.open("POST", "/game/start/" + gameID)
+    req.open("POST", "/game/" + gameID + "/start/")
     req.send()
 
     req.onreadystatechange = (e) => {
@@ -34,6 +21,7 @@ function startGame(gameID) {
             return
         }
         document.getElementById("mainbox").innerHTML = req.responseText
+        renderGame(gameID)
     }
 }
 
@@ -45,41 +33,47 @@ function createJoinGameLink(gameID) {
         if (req.readyState != 4) {
             return
         }
-        joinGameLink = location.protocol + '//' + location.host + "/game/join/" + gameID + "?anonymous=" + req.responseText
+        joinGameLink = location.protocol + '//' + location.host + "/game/" + gameID + "/join?anonymous=" + req.responseText
         navigator.clipboard.writeText(joinGameLink)
     }
 }
 
-function renderGame(gameID) {
-    const source = new EventSource("/game/" + gameID + "/render")
-    source.onmessage = (event) => {
-        console.log("OnMessage Called:")
-        console.log(event)
-        document.getElementById("gamebox").innerHTML = event.data
+function inviteUser(gameID) {
+    let req = new XMLHttpRequest()
+    req.open("POST", "/game/" + gameID + "/invite?username=" + document.getElementById("username").value)
+    req.send()
+    req.onreadystatechange = (e) => {
+        if (req.readyState != 4) {
+            return
+        }
+        document.getElementById("username").value = ""
     }
 }
 
-function playCard(gameID, position) {
-    console.log("Play Card Called:", gameID, position)
+function renderGame(gameID) {
+    const source = new EventSource("/game/" + gameID + "/render/")
+    source.onmessage = (event) => {
+        switch (event.data) {
+            case "waiting":
+                document.getElementById("gamebox").innerHTML = "<h2>Waiting on game to start and render...</h2>"
+                return
+        }
+        console.log("Rendering board")
+        document.getElementById("gamebox").innerHTML = atob(event.data)
+    }
+}
+
+function playCard(gameID, cardID, x, y) {
+    console.log("Play Card Called:", gameID, x, y)
+    let req = new XMLHttpRequest()
+    req.open("POST", "/game/" + gameID + "/play/card/" + cardID + "?position=" + x + ":" + y)
+    req.send()
+    req.onreadystatechange = (e) => {
+        if (req.readyState != 4) {
+            return
+        }
+        console.log(req.responseText)
+    }
     //         /game/{ { $gameid } } /play/card / {{ $gameid }
     // }?position = {{ $position.X }}: { { $position.Y } }
-}
-
-function logout() {
-    var str = ""
-    if (window.location.href.startsWith("http://")) {
-        str = window.location.href.replace("http://", "http://" + new Date().getTime() + "@");
-    } else {
-        str = window.location.href.replace("https://", "https://" + new Date().getTime() + "@");
-    }
-    var xmlhttp;
-    if (window.XMLHttpRequest) xmlhttp = new XMLHttpRequest();
-    else xmlhttp = new ActiveXObject("Microsoft.XMLHTTP");
-    xmlhttp.onreadystatechange = function () {
-        if (xmlhttp.readyState == 4) location.reload();
-    }
-    xmlhttp.open("GET", str, true);
-    xmlhttp.setRequestHeader("Authorization", "Basic fffff")
-    xmlhttp.send();
-    return false;
 }

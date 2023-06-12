@@ -1,9 +1,10 @@
 package pollen
 
 import (
+	"bytes"
+	"encoding/base64"
 	"fmt"
 	"io"
-	"log"
 	"strconv"
 	"strings"
 	"text/template"
@@ -193,25 +194,23 @@ var boardTmpl = template.Must(template.New("board").Funcs(template.FuncMap{
 	"tokenStyle": func(token *PollinatorToken, position Position) string {
 		tokenStyle := fmt.Sprintf(`background-color: %s; left: %dpx; bottom: %dpx;`,
 			token.Type.Color(), int((position.X*2*25)+15), int((position.Y*2*25)+15))
-		log.Println(tokenStyle)
 		return tokenStyle
 	},
 	"cardStyle": func(card *GardenCard, position Position) string {
 		tokenStyle := fmt.Sprintf(`background-color: %s; left: %dpx; bottom: %dpx;`,
 			card.Color, int(position.X*2*25), int(position.Y*2*25))
-		log.Println(tokenStyle)
 		return tokenStyle
 	},
 	"playableStyle": func(position Position, o interface{}) string {
 		tokenStyle := fmt.Sprintf(`background-color: orange; opacity: 0.5; left: %dpx; bottom: %dpx;`,
 			int(position.X*2*25), int(position.Y*2*25))
-		log.Println(tokenStyle)
 		return tokenStyle
 	},
 }).Parse(`
 	{{ $debug :=.Debug }}
 	{{ $player :=.Player}}
-	{{ $gameid :=.GameID}}
+	{{ $gameID :=.GameID}}
+	{{ $cardID :=.CardID}}
 	<div class="board">
 		<div class="center">
 			{{range $position, $card :=.Cards}}
@@ -230,28 +229,51 @@ var boardTmpl = template.Must(template.New("board").Funcs(template.FuncMap{
 					{{$token.Type}}
 				</div>
 			{{end}}
-			{{range $position, $empty := .PlayableCards}}
-				<div class="playableCard" style="{{ playableStyle $position 0 }}" onclick="playCard({{$gameid}},{{$position}})">
-					<div>
-						<img class="card" src="/static/images/Back_{{$player.Color}}.png">
-							{{ if $debug }}
-								<div class="centered"> Position {{ $position }}</div>
-							{{end}}
-						</img>
+			{{ if $cardID }}
+				{{range $position, $empty := .PlayableCards}}
+					<div class="playableCard" style="{{ playableStyle $position 0 }}" onclick='playCard("{{$gameID}}","{{$cardID}}",{{$position.X}},{{$position.Y}})'>
+						<div>
+							<img class="card" src="/static/images/Back_{{$player.Color}}.png">
+								{{ if $debug }}
+									<div class="centered"> Position {{ $position }}</div>
+								{{end}}
+							</img>
+						</div>
 					</div>
-				</div>
+				{{end}}
 			{{end}}
 		</div>
 	</div>
 	`))
 
 func (b *Board) Render(w io.Writer, p *Player, g *Game) error {
-	return boardTmpl.Execute(w, struct {
+	buff := bytes.NewBuffer(nil)
+	card := ""
+	if len(p.Hand) > 0 {
+		card = p.Hand[0].ID.String()
+	}
+
+	err := boardTmpl.Execute(buff, struct {
 		Cards         map[Position]*GardenCard
 		Tokens        map[Position]*PollinatorToken
 		PlayableCards map[Position]struct{}
 		Debug         bool
 		Player        *Player
 		GameID        string
-	}{b.cards, b.tokens, b.CardLocationsPlayable(), false, p, g.id.String()})
+		CardID        string
+	}{
+		b.cards,
+		b.tokens,
+		b.CardLocationsPlayable(),
+		false,
+		p,
+		g.id.String(),
+		card,
+	})
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintf(w, "data: %s\n\n", base64.StdEncoding.EncodeToString(buff.Bytes()))
+	return nil
 }

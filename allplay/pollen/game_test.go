@@ -8,8 +8,7 @@ import (
 )
 
 func TestGame(t *testing.T) {
-	g := NewGame(uuid.Must(uuid.NewV4()))
-	g.AddPlayer("JAMES")
+	g := NewGame(uuid.Must(uuid.NewV4()), "JAMES", "test game", 1)
 	g.AddPlayer("RAE")
 	require.NoError(t, g.Start())
 
@@ -86,8 +85,7 @@ func TestGame(t *testing.T) {
 }
 
 func TestMustPlayToken(t *testing.T) {
-	g := NewGame(uuid.Must(uuid.NewV4()))
-	g.AddPlayer("JAMES")
+	g := NewGame(uuid.Must(uuid.NewV4()), "JAMES", "test 2 game", 1)
 	g.AddPlayer("RAE")
 	require.NoError(t, g.Start())
 

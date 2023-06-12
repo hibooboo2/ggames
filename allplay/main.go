@@ -20,15 +20,17 @@ func main() {
 	r.Handle("/static/images/{imagename}", http.StripPrefix("/static/images/", http.FileServer(http.Dir("./pollen/static/images/"))))
 	r.Handle("/static/css/{filename}", http.StripPrefix("/static/css/", http.FileServer(http.Dir("./pollen/static/css/"))))
 	r.HandleFunc("/login", rest.LoginHandler)
+	r.HandleFunc("/logout", rest.LogoutHandler)
 	r.HandleFunc("/register", rest.Register)
 
 	a := r.With(rest.LogRequest, rest.Recover, rest.BasicAuth)
 	a.HandleFunc("/", homePage)
 	a.Post("/game", newgame)
-	a.Get("/game/join/{game_id}", joinGame)
-	a.Post("/game/start/{game_id}", startGame)
-	a.Get("/game/play/{game_id}", playGame)
-	a.Get("/game/{game_id}/render", renderGame)
+	a.Post("/game/{game_id}/invite", inviteUser)
+	a.Get("/game/{game_id}/join", joinGame)
+	a.Post("/game/{game_id}/start/", startGame)
+	a.Get("/game/{game_id}/play/", playGame)
+	a.Get("/game/{game_id}/render/", renderGame)
 	a.Post("/game/{game_id}/play/card/{card_id}", playCard)
 
 	a.Post("/tempID/", rest.TempID)
@@ -38,6 +40,7 @@ func main() {
 
 func homePage(w http.ResponseWriter, r *http.Request) {
 	homePageTmpl := template.Must(template.New("home").Parse(`
+	{{ $username :=.Username }}
 	<!DOCTYPE html>
 	<html>
 		<head>
@@ -49,7 +52,21 @@ func homePage(w http.ResponseWriter, r *http.Request) {
 				<h1>Welcome to Pollen</h1>
 				<button onclick="newGame()">New Game</button>
 				{{ range $game := .Games }}
-					<a href="/game/play/{{ $game.GetID }}">Play Game</a>
+				<ul>
+					<li>
+						<a href="/game/{{ $game.GetID }}/play/">Play Game: {{ $game.Name }} </a>
+						{{ if $game.IsOwner $username }}
+						<button onclick='startGame({{ $game.GetID }})'>Start Game</button>
+						{{ end}}
+					</li>
+				</ul>
+				{{end}}
+				{{ range $game := .InvitedGames }}
+					<ul>
+						<li>
+							<a href="/game/{{ $game.GetID }}/join">Join Game: {{ $game.Name }} </a>
+						</li>
+					</ul>
 				{{end}}
 			</div>
 		</body>
@@ -58,12 +75,36 @@ func homePage(w http.ResponseWriter, r *http.Request) {
 
 	username := rest.GetUsername(r)
 	activeGames := db.GetActiveGames(username)
+	invitedGames := db.GetInvitedGames(username)
 	log.Println("User: ", username, " Active Games: ", len(activeGames))
+	log.Println("User: ", username, " Invited Games: ", len(invitedGames))
 
 	homePageTmpl.Execute(w, struct {
-		Games []*pollen.Game
+		Games        []*pollen.Game
+		InvitedGames []*pollen.Game
+		Username     string
 	}{
 		activeGames,
+		invitedGames,
+		username,
+	})
+}
+
+func inviteUser(w http.ResponseWriter, r *http.Request) {
+	username := rest.GetUsername(r)
+	gameID := pollen.GetGameID(r)
+	log.Println("User: ", username, " Invite Game: ", gameID)
+
+	uname := r.URL.Query().Get("username")
+
+	if err := db.InviteUserToGame(gameID, uname); err != nil {
+		log.Println(err)
+		rest.RespondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	rest.RespondJson(w, http.StatusAccepted, map[string]string{
+		"status": "accepted",
 	})
 }
 
@@ -79,8 +120,10 @@ func newgame(w http.ResponseWriter, r *http.Request) {
 	newGameTmpl := template.Must(template.New("newgame").Parse(`
 		<div>
 		    <h1>Current Game {{.GameID}}</h1>
-			<button onclick='createJoinGameLink({{.GameID}})'>Copy Join Game Link</button>
-			<button onclick='startGame({{.GameID}})'>Start Game</button>
+			<button onclick='createJoinGameLink({{ .GameID }})'>Copy Join Game Link</button>
+			<button onclick='startGame({{ .GameID }})'>Start Game</button>
+			<input type="text" id="username" placeholder="User to invite"/>
+			<button onclick='inviteUser({{ .GameID }})'>Invite User</button>
 		</div>
 	`))
 
@@ -99,28 +142,19 @@ func joinGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.(http.Flusher).Flush()
-	http.Redirect(w, r, "/game/play/"+gameID.String(), http.StatusSeeOther)
+	http.Redirect(w, r, "/game/"+gameID.String()+"/play/", http.StatusFound)
 }
 
 func startGame(w http.ResponseWriter, r *http.Request) {
 	gameID := pollen.GetGameID(r)
 
-	username := rest.GetUsername(r)
-
-	err := db.AddGameUser(gameID, username)
+	err := db.StartGame(gameID)
 	if err != nil {
 		rest.RespondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	err = db.StartGame(gameID)
-	if err != nil {
-		rest.RespondError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	http.Redirect(w, r, "/game/play/"+gameID.String(), http.StatusFound)
+	http.Redirect(w, r, "/game/"+gameID.String()+"/play/", http.StatusFound)
 }
 
 func renderGame(w http.ResponseWriter, r *http.Request) {
