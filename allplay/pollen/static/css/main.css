@@ -1,3 +1,20 @@
+p {
+    display: block;
+}
+
+.false {
+    opacity: 0;
+}
+
+.true {
+    opacity: 0.5;
+}
+
+.right {
+    right: 0px;
+    position: fixed;
+}
+
 .center {
     background-color: red;
     position: relative;

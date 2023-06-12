@@ -31,6 +31,7 @@ func main() {
 	a.Post("/game/{game_id}/start/", startGame)
 	a.Get("/game/{game_id}/play/", playGame)
 	a.Get("/game/{game_id}/render/", renderGame)
+	a.Post("/game/{game_id}/hints/toggle/", toggleHints)
 	a.Post("/game/{game_id}/play/card/{card_id}", playCard)
 
 	a.Post("/tempID/", rest.TempID)
@@ -207,8 +208,8 @@ var playGameTmpl = template.Must(template.New("playgame").Parse(`
 		</head>
 		<body>
 		    <div id="mainbox">
-                <h1>Current Game {{.GameID}}</h1>
-				<h2>Playing as {{.Username}}</h2>
+                <p>Current Game {{.GameID}}</p>
+				<p>Playing as {{.Username}}</p>
 				<div id="gamebox">
 				</div>
 		    </div>
@@ -229,4 +230,19 @@ func playGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	playGameTmpl.Execute(w, tmplContext)
+}
+
+func toggleHints(w http.ResponseWriter, r *http.Request) {
+	gameID := pollen.GetGameID(r)
+	username := rest.GetUsername(r)
+
+	g := db.GetGame(gameID)
+	if g == nil {
+		rest.RespondError(w, http.StatusNotFound, "Game not found")
+		return
+	}
+
+	g.ToggleHints(username)
+
+	w.WriteHeader(http.StatusAccepted)
 }

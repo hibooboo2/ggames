@@ -98,3 +98,9 @@ function setCardToPlay(cardID) {
     document.getElementById(cardToPlay + "_img").className = "handCardSelected"
 
 }
+
+function toggleHints(gameID) {
+    let req = new XMLHttpRequest()
+    req.open("POST", "/game/" + gameID + "/hints/toggle/")
+    req.send()
+}

@@ -131,6 +131,15 @@ func (g *Game) End() {
 	close(g.done)
 }
 
+func (g *Game) ToggleHints(username string) {
+	for _, p := range g.players {
+		if p.Username == username {
+			p.HintsOn = !p.HintsOn
+		}
+	}
+	g.events <- struct{}{}
+}
+
 func (g *Game) GetID() uuid.UUID {
 	return g.id
 }
@@ -265,17 +274,25 @@ func (g *Game) Render(w io.Writer, username string) error {
 	<-g.readyChan
 
 	log.Println("Starting render for", playerToRenderFor.Username)
+
+	err := g.board.Render(w, playerToRenderFor, g)
+	if err != nil {
+		log.Printf("Failed to render for %s: %v", playerToRenderFor.Username, err)
+		return err
+	}
+
+	flusher.Flush()
+
 	for {
-		err := g.board.Render(w, playerToRenderFor, g)
-		if err != nil {
-			log.Printf("Failed to render for %s: %v", playerToRenderFor.Username, err)
-			return err
-		}
-
-		flusher.Flush()
-
 		select {
 		case <-playerToRenderFor.Events:
+			err := g.board.Render(w, playerToRenderFor, g)
+			if err != nil {
+				log.Printf("Failed to render for %s: %v", playerToRenderFor.Username, err)
+				return err
+			}
+
+			flusher.Flush()
 		case <-g.done:
 			return nil
 		}

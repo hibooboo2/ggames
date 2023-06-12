@@ -15,6 +15,7 @@ type Player struct {
 	Events   chan struct{}
 	Hand     []GardenCard
 	Deck     *GardenDeck
+	HintsOn  bool
 }
 
 func NewPlayer(username string, numPlayers int, color Color) *Player {

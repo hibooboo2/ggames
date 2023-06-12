@@ -5,6 +5,8 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"log"
+	"math"
 	"strconv"
 	"strings"
 	"text/template"
@@ -73,6 +75,7 @@ func (b *Board) GetTokensMustPlay() []Position {
 	if len(b.cards) == 0 {
 		return nil
 	}
+	log.Println("Getting tokens must play")
 	tokensMustPlay := map[Position]struct{}{}
 	for position, _ := range b.cards {
 		nw := Position{position.X + 0.5, position.Y + 0.5}
@@ -80,15 +83,19 @@ func (b *Board) GetTokensMustPlay() []Position {
 		ne := Position{position.X - 0.5, position.Y + 0.5}
 		se := Position{position.X - 0.5, position.Y - 0.5}
 
+		log.Println("Checking nw position for position", position)
 		if b.CanPlayToken(nw) == nil {
 			tokensMustPlay[nw] = struct{}{}
 		}
+		log.Println("Checking sw position for position", position)
 		if b.CanPlayToken(sw) == nil {
 			tokensMustPlay[sw] = struct{}{}
 		}
+		log.Println("Checking ne position for position", position)
 		if b.CanPlayToken(ne) == nil {
 			tokensMustPlay[ne] = struct{}{}
 		}
+		log.Println("Checking se position for position", position)
 		if b.CanPlayToken(se) == nil {
 			tokensMustPlay[se] = struct{}{}
 		}
@@ -110,6 +117,13 @@ func (b *Board) PlayToken(position Position, token *PollinatorToken) error {
 }
 
 func (b *Board) CanPlayToken(position Position) error {
+	_, fracX := math.Modf(math.Abs(position.X))
+	_, fracY := math.Modf(math.Abs(position.Y))
+	log.Println("Checking if can play: ", position, fracX, fracY)
+	if fracX != 0 || fracY != 0 {
+		return fmt.Errorf("invalid position for a token: %v X and Y positions must be whole numbers", position)
+	}
+
 	if _, present := b.tokens[position]; present {
 		return fmt.Errorf("token already exists at position %v", position)
 	}
@@ -143,6 +157,12 @@ func (b *Board) PlayCard(position Position, card *GardenCard) error {
 }
 
 func (b *Board) CanPlayCard(position Position) error {
+	_, fracX := math.Modf(math.Abs(position.X))
+	_, fracY := math.Modf(math.Abs(position.Y))
+	if fracX != 0.5 || fracY != 0.5 {
+		return fmt.Errorf("invalid position for a card: %v X and Y positions must be numbers that end in .5", position)
+	}
+
 	_, present := b.cards[position]
 	if present {
 		return fmt.Errorf("card already exists at position %v", position)
@@ -202,7 +222,7 @@ var boardTmpl = template.Must(template.New("board").Funcs(template.FuncMap{
 		return tokenStyle
 	},
 	"playableStyle": func(position Position, o interface{}) string {
-		tokenStyle := fmt.Sprintf(`background-color: orange; opacity: 0.5; left: %dpx; bottom: %dpx;`,
+		tokenStyle := fmt.Sprintf(`left: %dpx; bottom: %dpx;`,
 			int(position.X*2*25), int(position.Y*2*25))
 		return tokenStyle
 	},
@@ -213,10 +233,14 @@ var boardTmpl = template.Must(template.New("board").Funcs(template.FuncMap{
 	},
 }).Parse(`
 	{{ $debug :=.Debug }}
+	{{ $hints :=.HintsOn }}
 	{{ $player :=.Player}}
 	{{ $gameID :=.GameID}}
 	{{ $isPlayerTurn :=.IsPlayerTurn}}
 	<div class="board">
+		<button class="right" id="hintsToggle" onclick='toggleHints("{{ $gameID }}")'>
+			Toggle Hints
+		</button>
 		<div class="center">
 			{{range $position, $card :=.Cards}}
 				<div class="card" style="{{ cardStyle $card $position }}">
@@ -234,9 +258,9 @@ var boardTmpl = template.Must(template.New("board").Funcs(template.FuncMap{
 					{{$token.Type}}
 				</div>
 			{{end}}
-			{{if $isPlayerTurn}}
+			{{if $isPlayerTurn }}
 				{{range $position, $empty := .PlayableCards}}
-					<div class="playableCard" style="{{ playableStyle $position 0 }}" onclick='playCard("{{$gameID}}",getCardToPlay(),{{$position.X}},{{$position.Y}})'>
+					<div class="playableCard {{$hints}}" style="{{ playableStyle $position 0 }}" onclick='playCard("{{$gameID}}",getCardToPlay(),{{$position.X}},{{$position.Y}})'>
 						<div>
 							<img class="card" src="/static/images/Back_{{$player.Color}}.png">
 								{{ if $debug }}
@@ -278,6 +302,7 @@ func (b *Board) Render(w io.Writer, p *Player, g *Game) error {
 		GameID        string
 		Hand          []GardenCard
 		IsPlayerTurn  bool
+		HintsOn       bool
 	}{
 		b.cards,
 		b.tokens,
@@ -287,6 +312,7 @@ func (b *Board) Render(w io.Writer, p *Player, g *Game) error {
 		g.id.String(),
 		p.Hand,
 		g.activePlayer().Username == p.Username,
+		p.HintsOn,
 	})
 	if err != nil {
 		return err
