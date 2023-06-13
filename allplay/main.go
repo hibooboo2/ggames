@@ -216,7 +216,7 @@ var playGameTmpl = template.Must(template.New("playgame").Parse(`
 		    </div>
 		</body>
 		<script>
-			renderGame({{.GameID}})
+			renderGame("{{.GameID}}")
 		</script>
 	</html>
 `))

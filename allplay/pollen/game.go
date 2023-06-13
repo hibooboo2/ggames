@@ -55,6 +55,11 @@ func (g *Game) Name() string {
 }
 
 func (g *Game) Start() error {
+	select {
+	case <-g.readyChan:
+		return nil
+	case <-time.After(time.Second):
+	}
 	switch len(g.playerUsernames) {
 	case 2, 3, 4:
 	default:
@@ -137,6 +142,7 @@ func (g *Game) ToggleHints(username string) {
 			p.HintsOn = !p.HintsOn
 		}
 	}
+	logger.Gamesf("Hints toggled for user: %s", username)
 	g.events <- struct{}{}
 }
 

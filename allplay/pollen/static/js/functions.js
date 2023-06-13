@@ -21,7 +21,7 @@ function startGame(gameID) {
             return
         }
         document.getElementById("mainbox").innerHTML = req.responseText
-        renderGame(gameID)
+        window.location.href = "/game/" + gameID + "/play/"
     }
 }
 
@@ -59,6 +59,7 @@ function renderGame(gameID) {
                 return
         }
         console.log("Rendering board")
+        cardToPlay = ""
         document.getElementById("gamebox").innerHTML = atob(event.data)
     }
 }
@@ -82,6 +83,7 @@ function playCard(gameID, cardID, x, y) {
     //         /game/{ { $gameid } } /play/card / {{ $gameid }
     // }?position = {{ $position.X }}: { { $position.Y } }
 }
+
 var cardToPlay = "";
 
 function getCardToPlay() {
