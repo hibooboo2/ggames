@@ -15,7 +15,6 @@ import (
 
 func main() {
 	// logger.SetFlags(logger.Lshortfile)
-	logger.SetLevel(logger.LBoard)
 
 	r := chi.NewRouter()
 	r.Handle("/static/js/{filename}", http.StripPrefix("/static/js/", http.FileServer(http.Dir("./pollen/static/js"))))
