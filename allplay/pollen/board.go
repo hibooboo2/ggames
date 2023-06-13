@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"os"
 	"strconv"
 	"strings"
 	"text/template"
@@ -60,7 +61,6 @@ func (b *Board) PlaceStarterToken(token *PollinatorToken) {
 	b.tokens[Position{0, 0}] = token
 }
 
-// XXX finish implementing this
 func (b *Board) MustPlayToken() error {
 	if len(b.cards) == 0 {
 		return nil
@@ -76,7 +76,7 @@ func (b *Board) GetTokensMustPlay() []Position {
 	if len(b.cards) == 0 {
 		return nil
 	}
-	logger.Board("Getting tokens must play")
+	logger.AtLevel(logger.LPosition|logger.LBoard|logger.LToken, "Getting tokens must play")
 	tokensMustPlay := map[Position]struct{}{}
 	for position, _ := range b.cards {
 		nw := Position{position.X + 0.5, position.Y + 0.5}
@@ -84,19 +84,19 @@ func (b *Board) GetTokensMustPlay() []Position {
 		ne := Position{position.X - 0.5, position.Y + 0.5}
 		se := Position{position.X - 0.5, position.Y - 0.5}
 
-		logger.Board("Checking nw position for position", position)
+		logger.AtLevel(logger.LPosition, "Checking nw position for position", position)
 		if b.CanPlayToken(nw) == nil {
 			tokensMustPlay[nw] = struct{}{}
 		}
-		logger.Board("Checking sw position for position", position)
+		logger.AtLevel(logger.LPosition, "Checking sw position for position", position)
 		if b.CanPlayToken(sw) == nil {
 			tokensMustPlay[sw] = struct{}{}
 		}
-		logger.Board("Checking ne position for position", position)
+		logger.AtLevel(logger.LPosition, "Checking ne position for position", position)
 		if b.CanPlayToken(ne) == nil {
 			tokensMustPlay[ne] = struct{}{}
 		}
-		logger.Board("Checking se position for position", position)
+		logger.AtLevel(logger.LPosition, "Checking se position for position", position)
 		if b.CanPlayToken(se) == nil {
 			tokensMustPlay[se] = struct{}{}
 		}
@@ -120,7 +120,7 @@ func (b *Board) PlayToken(position Position, token *PollinatorToken) error {
 func (b *Board) CanPlayToken(position Position) error {
 	_, fracX := math.Modf(math.Abs(position.X))
 	_, fracY := math.Modf(math.Abs(position.Y))
-	logger.Board("Checking if can play: ", position, fracX, fracY)
+	logger.AtLevel(logger.LPosition, "Checking if can play: ", position, fracX, fracY)
 	if fracX != 0 || fracY != 0 {
 		return fmt.Errorf("invalid position for a token: %v X and Y positions must be whole numbers", position)
 	}
@@ -186,7 +186,6 @@ func (b *Board) CanPlayCard(position Position) error {
 	return nil
 }
 
-// XXX this is not working missing some playable locations
 func (b *Board) CardLocationsPlayable() map[Position]struct{} {
 	positions := map[Position]struct{}{}
 	for position := range b.tokens {
@@ -211,103 +210,64 @@ func (b *Board) CardLocationsPlayable() map[Position]struct{} {
 	return positions
 }
 
-var boardTmpl = template.Must(template.New("board").Funcs(template.FuncMap{
-	"tokenStyle": func(token *PollinatorToken, position Position) string {
-		tokenStyle := fmt.Sprintf(`background-color: %s; left: %dpx; bottom: %dpx;`,
-			token.Type.Color(), int((position.X*2*25)+15), int((position.Y*2*25)+15))
-		return tokenStyle
-	},
-	"cardStyle": func(card *GardenCard, position Position) string {
-		tokenStyle := fmt.Sprintf(`background-color: %s; left: %dpx; bottom: %dpx;`,
-			card.Color, int(position.X*2*25), int(position.Y*2*25))
-		return tokenStyle
-	},
-	"playableStyle": func(position Position, o interface{}) string {
-		tokenStyle := fmt.Sprintf(`left: %dpx; bottom: %dpx;`,
-			int(position.X*2*25), int(position.Y*2*25))
-		return tokenStyle
-	},
-	"handStyle": func(card GardenCard, p int) string {
-		tokenStyle := fmt.Sprintf(`left: %dpx; bottom: 0px;`, p*75)
-		return ""
-		return tokenStyle
-	},
-}).Parse(`
-	{{ $debug :=.Debug }}
-	{{ $hints :=.HintsOn }}
-	{{ $player :=.Player}}
-	{{ $gameID :=.GameID}}
-	{{ $isPlayerTurn :=.IsPlayerTurn}}
-	<div class="board">
-		<button class="right" id="hintsToggle" onclick='toggleHints("{{ $gameID }}")'>
-			Toggle Hints
-		</button>
-		<div class="center">
-			{{range $position, $card :=.Cards}}
-				<div class="card" style="{{ cardStyle $card $position }}">
-					<div>
-						<img class="card" src="/static/images/{{ $card.Name }}.png" title="{{ $card.Name }}">
-						{{ if $debug }}
-							<div class="centered"> Position {{ $position }}</div>
-						{{end}}
-						</img>
-					</div>
-				</div>
-			{{end}}
-			{{range $position, $token :=.Tokens}}
-				<div class="token" style="{{ tokenStyle $token $position }}">
-					{{$token.Type}}
-				</div>
-			{{end}}
-			{{if $isPlayerTurn }}
-				{{range $position, $empty := .PlayableCards}}
-					<div class="playableCard {{$hints}}" style="{{ playableStyle $position 0 }}" onclick='playCard("{{$gameID}}",getCardToPlay(),{{$position.X}},{{$position.Y}})'>
-						<div>
-							<img class="card" src="/static/images/Back_{{$player.Color}}.png">
-								{{ if $debug }}
-									<div class="centered"> Position {{ $position }}</div>
-								{{end}}
-							</img>
-						</div>
-					</div>
-				{{ end }}
-			{{ end}}
-			<div class="bottom hand">
-				<div class="cardHolder">
-					{{range $cardNum, $card := .Hand}}
-						<div class="handCard" id="{{ $card.ID }}" style="{{ handStyle $card $cardNum }}" onclick='setCardToPlay("{{ $card.ID }}")'>
-							<div>
-								<img class="handCard" id="{{ $card.ID }}_img" src="/static/images/{{ $card.Name }}.png">
-									{{ if $debug }}
-										<div class="centered"> Position {{ $cardNum }}</div>
-									{{end}}
-								</img>
-							</div>
-						</div>
-					{{end}}
-				</div>
-			</div>
-		</div>
-	</div>
-	`))
+var boardTmpl = func() *template.Template {
+	boardFile := "./pollen/static/views/board.html.tmpl"
+	_, err := os.Lstat(boardFile)
+	logger.Initf("Lstat %q: %v", boardFile, err)
+	if os.IsNotExist(err) {
+		logger.Initf("%q not found", boardFile)
+		return nil
+	}
+	logger.Initf("Parsing %q", boardFile)
+	return template.Must(template.New("board").Funcs(template.FuncMap{
+		"tokenStyle": func(token *PollinatorToken, position Position) string {
+			tokenStyle := fmt.Sprintf(`background-color: %s; left: %dpx; bottom: %dpx;`,
+				token.Type.Color(), int((position.X*2*25)+15), int((position.Y*2*25)+15))
+			return tokenStyle
+		},
+		"playableTokenStyle": func(position Position, o interface{}) string {
+			tokenStyle := fmt.Sprintf(`background-color: black; opacity: 0.5; left: %dpx; bottom: %dpx;`,
+				int((position.X*2*25)+15), int((position.Y*2*25)+15))
+			return tokenStyle
+		},
+		"cardStyle": func(card *GardenCard, position Position) string {
+			cardStyle := fmt.Sprintf(`background-color: %s; left: %dpx; bottom: %dpx;`,
+				card.Color, int(position.X*2*25), int(position.Y*2*25))
+			return cardStyle
+		},
+		"playableStyle": func(position Position, o interface{}) string {
+			tokenStyle := fmt.Sprintf(`left: %dpx; bottom: %dpx;`,
+				int(position.X*2*25), int(position.Y*2*25))
+			return tokenStyle
+		},
+	}).ParseFiles(boardFile))
+}()
 
 func (b *Board) Render(w io.Writer, p *Player, g *Game) error {
-	buff := bytes.NewBuffer(nil)
+	if boardTmpl == nil {
+		return fmt.Errorf("No board template found")
+	}
 
-	err := boardTmpl.Execute(buff, struct {
-		Cards         map[Position]*GardenCard
-		Tokens        map[Position]*PollinatorToken
-		PlayableCards map[Position]struct{}
-		Debug         bool
-		Player        *Player
-		GameID        string
-		Hand          []GardenCard
-		IsPlayerTurn  bool
-		HintsOn       bool
+	buff := bytes.NewBuffer(nil)
+	tokensMustPlay := b.GetTokensMustPlay()
+	err := boardTmpl.ExecuteTemplate(buff, "board", struct {
+		Cards                  map[Position]*GardenCard
+		Tokens                 map[Position]*PollinatorToken
+		PlayableCards          map[Position]struct{}
+		PlayableTokenPositions []Position
+		TokensCanPlay          []*PollinatorToken
+		Debug                  bool
+		Player                 *Player
+		GameID                 string
+		Hand                   []GardenCard
+		IsPlayerTurn           bool
+		HintsOn                bool
 	}{
 		b.cards,
 		b.tokens,
 		b.CardLocationsPlayable(),
+		tokensMustPlay,
+		g.tokenBag.GetTokens(len(tokensMustPlay)),
 		false,
 		p,
 		g.id.String(),

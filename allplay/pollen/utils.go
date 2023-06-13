@@ -19,6 +19,12 @@ func GetCardID(r *http.Request) uuid.UUID {
 	return cardID
 }
 
+func GetTokenID(r *http.Request) uuid.UUID {
+	id := chi.URLParam(r, "token_id")
+	tokenID := uuid.Must(uuid.FromString(id))
+	return tokenID
+}
+
 func GetPosition(r *http.Request) Position {
 	positionString := r.FormValue("position")
 	if positionString == "" {

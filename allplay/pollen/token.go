@@ -4,10 +4,11 @@ import (
 	"math/rand"
 
 	"github.com/gofrs/uuid"
+	"github.com/hibooboo2/ggames/allplay/logger"
 )
 
 type PollinatorToken struct {
-	id   uuid.UUID
+	ID   uuid.UUID
 	Type TokenType
 }
 
@@ -78,18 +79,50 @@ func NewTokenBag() *TokenBag {
 	return tb
 }
 
-func (tb *TokenBag) GetToken() *PollinatorToken {
+func (tb *TokenBag) GetTokens(n int) []*PollinatorToken {
 	if len(tb.tokens) == 0 {
 		return nil
 	}
 
-	t := tb.tokens[0]
-	if len(tb.tokens) == 1 {
-		return t
+	if len(tb.tokens) < n {
+		n = len(tb.tokens)
 	}
 
-	tb.tokens = tb.tokens[1:]
-	return t
+	return tb.tokens[:n]
+}
+
+func (tb *TokenBag) GetToken(tokenID uuid.UUID) *PollinatorToken {
+	for _, t := range tb.tokens {
+		if t.ID == tokenID {
+			return t
+		}
+	}
+	return nil
+}
+
+func (tb *TokenBag) ConsumeTokens(tokens []*PollinatorToken) {
+	for _, token := range tokens {
+		tb.ConsumeToken(token.ID)
+	}
+}
+
+func (tb *TokenBag) ConsumeToken(tokenID uuid.UUID) {
+	for i := range tb.tokens {
+		if tb.tokens[i].ID == tokenID {
+			tb.tokens = append(tb.tokens[:i], tb.tokens[i+1:]...)
+			logger.Tokenln("There are now ", len(tb.tokens), " tokens left")
+			return
+		}
+	}
+}
+
+func (tb *TokenBag) HasToken(tokenID uuid.UUID) bool {
+	for i := range tb.tokens {
+		if tb.tokens[i].ID == tokenID {
+			return true
+		}
+	}
+	return false
 }
 
 func createPollinatorTokens() []*PollinatorToken {
@@ -116,49 +149,49 @@ func NewTokenGroup(tokenCreator func() *PollinatorToken, n int) []*PollinatorTok
 
 func NewBeeToken() *PollinatorToken {
 	return &PollinatorToken{
-		id:   uuid.Must(uuid.NewV4()),
+		ID:   uuid.Must(uuid.NewV4()),
 		Type: BeeToken,
 	}
 }
 
 func NewJunebugToken() *PollinatorToken {
 	return &PollinatorToken{
-		id:   uuid.Must(uuid.NewV4()),
+		ID:   uuid.Must(uuid.NewV4()),
 		Type: JunebugToken,
 	}
 }
 
 func NewButterflyToken() *PollinatorToken {
 	return &PollinatorToken{
-		id:   uuid.Must(uuid.NewV4()),
+		ID:   uuid.Must(uuid.NewV4()),
 		Type: ButterflyToken,
 	}
 }
 
 func NewBeeJunebugToken() *PollinatorToken {
 	return &PollinatorToken{
-		id:   uuid.Must(uuid.NewV4()),
+		ID:   uuid.Must(uuid.NewV4()),
 		Type: BeeJunebugToken,
 	}
 }
 
 func NewBeeButterflyToken() *PollinatorToken {
 	return &PollinatorToken{
-		id:   uuid.Must(uuid.NewV4()),
+		ID:   uuid.Must(uuid.NewV4()),
 		Type: BeeButterflyToken,
 	}
 }
 
 func NewJunebugButterFlyToken() *PollinatorToken {
 	return &PollinatorToken{
-		id:   uuid.Must(uuid.NewV4()),
+		ID:   uuid.Must(uuid.NewV4()),
 		Type: JunebugButterFlyToken,
 	}
 }
 
 func NewBeeJunebugButterFlyToken() *PollinatorToken {
 	return &PollinatorToken{
-		id:   uuid.Must(uuid.NewV4()),
+		ID:   uuid.Must(uuid.NewV4()),
 		Type: BeeJunebugButterFlyToken,
 	}
 }

@@ -16,7 +16,7 @@ func NewGame(id uuid.UUID, username string) error {
 	}
 
 	g := pollen.NewGame(id, username, "Like you've never danced before:", len(games)+1)
-	g.AutoToken = true
+
 	g.AddPlayer(username)
 	games[id] = g
 	return nil

@@ -34,6 +34,7 @@ func main() {
 	a.Get("/game/{game_id}/render/", renderGame)
 	a.Post("/game/{game_id}/hints/toggle/", toggleHints)
 	a.Post("/game/{game_id}/play/card/{card_id}", playCard)
+	a.Post("/game/{game_id}/play/token/{token_id}", playToken)
 
 	a.Post("/tempID/", rest.TempID)
 
@@ -189,6 +190,23 @@ func playCard(w http.ResponseWriter, r *http.Request) {
 	g := db.GetGame(gameID)
 
 	err := g.PlayCard(username, pollen.GetCardID(r), pollen.GetPosition(r))
+	if err != nil {
+		rest.RespondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	g.NextPlayer()
+
+	w.WriteHeader(http.StatusAccepted)
+}
+
+func playToken(w http.ResponseWriter, r *http.Request) {
+	gameID := pollen.GetGameID(r)
+	username := rest.GetUsername(r)
+
+	g := db.GetGame(gameID)
+
+	err := g.PlayToken(username, pollen.GetTokenID(r), pollen.GetPosition(r))
 	if err != nil {
 		rest.RespondError(w, http.StatusBadRequest, err.Error())
 		return

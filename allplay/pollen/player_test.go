@@ -14,6 +14,7 @@ func TestPlayerEmptyDeckAndHand(t *testing.T) {
 		card = p.Hand[0]
 		_, err := p.PlayCard(card.ID)
 		require.NoError(t, err)
+		p.CardNotPlayed()
 	}
 	_, err := p.PlayCard(card.ID)
 	require.Error(t, err)

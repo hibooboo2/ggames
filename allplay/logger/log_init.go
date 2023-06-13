@@ -7,23 +7,29 @@ import (
 )
 
 const (
-	LCards = 0b1000000000 >> iota
+	LInit = 0b1000000000 >> iota
+	LCards
 	LGames
 	LBoard
 	LAuth
 	LUsers
 	LPlayer
+	LToken
+	LPosition
 
-	All = LCards | LGames | LBoard | LAuth | LUsers | LPlayer
+	All = LCards | LGames | LBoard | LAuth | LUsers | LPlayer | LInit | LToken
 )
 
 func init() {
+	glog.RegisterLevel(LInit, "INIT")
 	glog.RegisterLevel(LCards, "CARDS")
 	glog.RegisterLevel(LGames, "GAMES")
 	glog.RegisterLevel(LBoard, "BOARD")
 	glog.RegisterLevel(LAuth, "AUTH")
 	glog.RegisterLevel(LUsers, "USERS")
 	glog.RegisterLevel(LPlayer, "PLAYERS")
+	glog.RegisterLevel(LToken, "TOKEN")
+	glog.RegisterLevel(LPosition, "POSITION")
 	allplayLogger.SetPrefix("ALLPLAY")
 }
 
@@ -31,6 +37,18 @@ var allplayLogger = glog.NewLogger(os.Stdout, glog.DefaultLevel|All)
 
 func SetLevel(level int) {
 	allplayLogger.SetLevel(level)
+}
+
+func AtLevel(level int, args ...interface{}) {
+	allplayLogger.AtLevel(level, args...)
+}
+
+func AtLevelf(level int, format string, args ...interface{}) {
+	allplayLogger.AtLevelf(level, format, args...)
+}
+
+func AtLevelln(level int, args ...interface{}) {
+	allplayLogger.AtLevelln(level, args...)
 }
 
 func Cardsf(msg string, args ...interface{}) {
@@ -103,4 +121,20 @@ func Playerf(msg string, args ...interface{}) {
 
 func Playerln(args ...interface{}) {
 	allplayLogger.AtLevelln(LPlayer, args...)
+}
+
+func Initf(msg string, args ...interface{}) {
+	allplayLogger.AtLevelf(LInit, msg, args...)
+}
+
+func Tokenf(msg string, args ...interface{}) {
+	allplayLogger.AtLevelf(LToken, msg, args...)
+}
+
+func Tokenln(args ...interface{}) {
+	allplayLogger.AtLevelln(LToken, args...)
+}
+
+func Token(args ...interface{}) {
+	allplayLogger.AtLevel(LToken, args...)
 }

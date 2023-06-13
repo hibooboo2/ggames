@@ -59,6 +59,19 @@ p {
     border-width: 5px;
 }
 
+.handToken {
+    width: 20px;
+    height: 20px;
+    opacity: 0.75;
+}
+
+.handTokenSelected {
+    width: 20px;
+    height: 20px;
+    border: #00FF00;
+    border-width: 5px;
+}
+
 .board {
     position: absolute;
     top: 0px;

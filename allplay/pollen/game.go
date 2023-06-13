@@ -79,7 +79,9 @@ func (g *Game) Start() error {
 	for _, p := range g.players {
 		logger.Games(p.Username, p.Color)
 	}
-	g.board = NewBoard(g.tokenBag.GetToken())
+	tks := g.tokenBag.GetTokens(1)
+	g.tokenBag.ConsumeTokens(tks)
+	g.board = NewBoard(tks[0])
 	go func() {
 		for range g.events {
 			for _, p := range g.players {
@@ -164,6 +166,8 @@ func (g *Game) NextPlayer() error {
 	if err := g.board.MustPlayToken(); err != nil {
 		return fmt.Errorf("current player must place a token: %w", err)
 	}
+
+	g.activePlayer().CardNotPlayed()
 	g.activePlayerCursor += 1
 	g.events <- struct{}{}
 	return nil
@@ -187,6 +191,10 @@ func (g *Game) PlayCard(username string, card uuid.UUID, position Position) erro
 		return fmt.Errorf("error moving card: %w", err)
 	}
 
+	if p.CardPlayed() {
+		return fmt.Errorf("player has already gone")
+	}
+
 	if err := g.board.PlayCard(position, cardToPlay); err != nil {
 		return fmt.Errorf("error playing card: %w", err)
 	}
@@ -197,14 +205,18 @@ func (g *Game) PlayCard(username string, card uuid.UUID, position Position) erro
 	}
 
 	//XXX make rest api for this and ui calls / clicks
+	tokenPositions := g.board.GetTokensMustPlay()
 	if g.AutoToken {
-		tokenPositions := g.board.GetTokensMustPlay()
 		for _, tokenPosition := range tokenPositions {
-			tk := g.tokenBag.GetToken()
-			err = g.PlayToken(username, tk, tokenPosition)
+			tks := g.tokenBag.GetTokens(1)
+			if tks == nil {
+				return fmt.Errorf("no tokens available")
+			}
+			err = g.PlayToken(username, tks[0].ID, tokenPosition)
 			if err != nil {
 				return fmt.Errorf("failed to play token: %w", err)
 			}
+			g.tokenBag.ConsumeToken(tks[0].ID)
 		}
 	}
 
@@ -215,25 +227,36 @@ func (g *Game) activePlayer() *Player {
 	return g.players[g.activePlayerCursor%len(g.players)]
 }
 
-func (g *Game) GetNextToken() *PollinatorToken {
-	token := g.tokenBag.GetToken()
+func (g *Game) GetNextTokenID() *uuid.UUID {
+	tokens := g.tokenBag.GetTokens(1)
 
-	if token == nil {
+	if tokens == nil {
 		// This is endgame condition need to handle this
 		return nil
 	}
 
-	return token
+	return &tokens[0].ID
 }
 
-func (g *Game) PlayToken(username string, token *PollinatorToken, position Position) error {
+func (g *Game) PlayToken(username string, tokenID uuid.UUID, position Position) error {
 	if g.activePlayer().Username != username {
 		return fmt.Errorf("it is not %q turn", username)
 	}
 
-	if err := g.board.PlayToken(position, token); err != nil {
+	if !g.tokenBag.HasToken(tokenID) {
+		return fmt.Errorf("token not found. Was it already played?")
+	}
+
+	tk := g.tokenBag.GetToken(tokenID)
+	if tk == nil {
+		return fmt.Errorf("token was nil when retrieved")
+	}
+
+	if err := g.board.PlayToken(position, tk); err != nil {
 		return fmt.Errorf("failed to play token: %w", err)
 	}
+
+	g.tokenBag.ConsumeToken(tokenID)
 
 	g.events <- struct{}{}
 	return nil

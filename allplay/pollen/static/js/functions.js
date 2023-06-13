@@ -84,7 +84,7 @@ function playCard(gameID, cardID, x, y) {
     // }?position = {{ $position.X }}: { { $position.Y } }
 }
 
-var cardToPlay = "";
+var cardToPlay = ""
 
 function getCardToPlay() {
     return cardToPlay
@@ -99,6 +99,39 @@ function setCardToPlay(cardID) {
     document.getElementById(cardToPlay).className = "handCardSelected"
     document.getElementById(cardToPlay + "_img").className = "handCardSelected"
 
+}
+
+var tokenToPlay = ""
+
+function setTokenToPlay(tokenID) {
+    if (tokenToPlay != "") {
+        document.getElementById(tokenToPlay).className = "handToken"
+        document.getElementById(tokenToPlay + "_img").className = "handToken"
+    }
+    tokenToPlay = tokenID
+    document.getElementById(tokenToPlay).className = "handTokenSelected"
+    document.getElementById(tokenToPlay + "_img").className = "handTokenSelected"
+}
+
+function playToken(gameID, x, y) {
+    console.log("Play Token Called:", gameID, x, y)
+    if (tokenToPlay == "") {
+        alert("You must select a token to play")
+        return
+    }
+    console.log("Play Token Called:", gameID, x, y)
+    let req = new XMLHttpRequest()
+    req.open("POST", "/game/" + gameID + "/play/token/" + tokenToPlay + "?position=" + x + ":" + y)
+    req.send()
+    req.onreadystatechange = (e) => {
+        if (req.readyState != 4) {
+            return
+        }
+        console.log(req.responseText)
+        tokenToPlay = ""
+    }
+    //         /game/{ { $gameid } } /play/card / {{ $gameid }
+    // }?position = {{ $position.X }}: { { $position.Y } }
 }
 
 function toggleHints(gameID) {

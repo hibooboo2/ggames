@@ -7,15 +7,19 @@ import (
 	"github.com/hibooboo2/ggames/allplay/logger"
 )
 
-var ErrNoCard = errors.New("player has no card")
+var (
+	ErrNoCard                    = errors.New("player has no card")
+	ErrCardAlreadyPlayedThisTurn = errors.New("card already played this turn")
+)
 
 type Player struct {
-	Color    Color
-	Username string
-	Events   chan struct{}
-	Hand     []GardenCard
-	Deck     *GardenDeck
-	HintsOn  bool
+	Color      Color
+	Username   string
+	Events     chan struct{}
+	Hand       []GardenCard
+	Deck       *GardenDeck
+	HintsOn    bool
+	cardPlayed bool
 }
 
 func NewPlayer(username string, numPlayers int, color Color) *Player {
@@ -30,7 +34,18 @@ func NewPlayer(username string, numPlayers int, color Color) *Player {
 	return p
 }
 
+func (p *Player) CardNotPlayed() {
+	p.cardPlayed = false
+}
+
+func (p *Player) CardPlayed() bool {
+	return p.cardPlayed
+}
+
 func (p *Player) PlayCard(card uuid.UUID) (*GardenCard, error) {
+	if p.cardPlayed {
+		return nil, ErrCardAlreadyPlayedThisTurn
+	}
 	if len(p.Hand) == 0 {
 		return nil, ErrNoCard
 	}
@@ -42,6 +57,7 @@ func (p *Player) PlayCard(card uuid.UUID) (*GardenCard, error) {
 			if drawnCard != nil {
 				p.Hand = append(p.Hand, *drawnCard)
 			}
+			p.cardPlayed = true
 			return &c, nil
 		}
 	}
