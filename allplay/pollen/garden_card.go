@@ -5,6 +5,7 @@ import (
 	"math/rand"
 
 	"github.com/gofrs/uuid"
+	"github.com/hibooboo2/ggames/allplay/logger"
 )
 
 type GardenCard struct {
@@ -23,6 +24,7 @@ type GardenDeck struct {
 }
 
 func NewGardenDeck(numplayers int, color Color) *GardenDeck {
+	logger.Cardsf("Making new deck with %d players color %s", numplayers, color)
 	deck := append(gardenCardSuits(color), gardenCardWilds(numplayers, color)...)
 	rand.Shuffle(len(deck), func(i, j int) {
 		deck[i], deck[j] = deck[j], deck[i]
@@ -31,6 +33,7 @@ func NewGardenDeck(numplayers int, color Color) *GardenDeck {
 }
 
 func (d *GardenDeck) Draw() *GardenCard {
+	logger.Cardsln("Drawing card")
 	if len(d.cards) == 0 {
 		return nil
 	}
