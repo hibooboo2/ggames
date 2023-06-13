@@ -2,9 +2,9 @@ package pollen
 
 import (
 	"errors"
-	"log"
 
 	"github.com/gofrs/uuid"
+	"github.com/hibooboo2/ggames/allplay/logger"
 )
 
 var ErrNoCard = errors.New("player has no card")
@@ -36,7 +36,7 @@ func (p *Player) PlayCard(card uuid.UUID) (*GardenCard, error) {
 	}
 	for i, c := range p.Hand {
 		if c.ID == card {
-			log.Print("Valid move ", c.Color, c.Type, c.Value)
+			logger.Player("Valid move ", c.Color, c.Type, c.Value)
 			p.Hand = append(p.Hand[:i], p.Hand[i+1:]...)
 			drawnCard := p.Deck.Draw()
 			if drawnCard != nil {

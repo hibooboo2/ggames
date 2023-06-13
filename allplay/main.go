@@ -2,18 +2,20 @@ package main
 
 import (
 	"html/template"
-	"log"
 	"net/http"
 
 	"github.com/go-chi/chi"
 	"github.com/gofrs/uuid"
+
+	"github.com/hibooboo2/ggames/allplay/logger"
 	"github.com/hibooboo2/ggames/allplay/pollen"
 	"github.com/hibooboo2/ggames/allplay/pollen/db"
 	"github.com/hibooboo2/ggames/allplay/rest"
 )
 
 func main() {
-	log.SetFlags(log.Lshortfile)
+	// logger.SetFlags(logger.Lshortfile)
+	logger.SetLevel(logger.LBoard)
 
 	r := chi.NewRouter()
 	r.Handle("/static/js/{filename}", http.StripPrefix("/static/js/", http.FileServer(http.Dir("./pollen/static/js"))))
@@ -77,8 +79,8 @@ func homePage(w http.ResponseWriter, r *http.Request) {
 	username := rest.GetUsername(r)
 	activeGames := db.GetActiveGames(username)
 	invitedGames := db.GetInvitedGames(username)
-	log.Println("User: ", username, " Active Games: ", len(activeGames))
-	log.Println("User: ", username, " Invited Games: ", len(invitedGames))
+	logger.Usersln(username, " Active Games: ", len(activeGames))
+	logger.Usersln(username, " Invited Games: ", len(invitedGames))
 
 	homePageTmpl.Execute(w, struct {
 		Games        []*pollen.Game
@@ -94,12 +96,12 @@ func homePage(w http.ResponseWriter, r *http.Request) {
 func inviteUser(w http.ResponseWriter, r *http.Request) {
 	username := rest.GetUsername(r)
 	gameID := pollen.GetGameID(r)
-	log.Println("User: ", username, " Invite Game: ", gameID)
+	logger.Usersln(username, " Invite Game: ", gameID)
 
 	uname := r.URL.Query().Get("username")
 
 	if err := db.InviteUserToGame(gameID, uname); err != nil {
-		log.Println(err)
+		logger.Usersln(err)
 		rest.RespondError(w, http.StatusBadRequest, err.Error())
 		return
 	}

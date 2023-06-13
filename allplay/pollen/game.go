@@ -4,13 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"math/rand"
 	"net/http"
 	"sort"
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/hibooboo2/ggames/allplay/logger"
 )
 
 func init() {
@@ -72,7 +72,7 @@ func (g *Game) Start() error {
 	}
 
 	for _, p := range g.players {
-		log.Println(p.Username, p.Color)
+		logger.Games(p.Username, p.Color)
 	}
 	g.board = NewBoard(g.tokenBag.GetToken())
 	go func() {
@@ -99,7 +99,7 @@ func (g *Game) AddPlayer(username string) error {
 		return errors.New("game already has 4 players")
 	}
 
-	log.Printf("Adding user to game: %s %s", g.id, username)
+	logger.Gamesf("Adding user to game: %s %s", g.id, username)
 	g.playerUsernames[username] = struct{}{}
 	delete(g.invitedUsers, username)
 	return nil
@@ -111,7 +111,7 @@ func (g *Game) InvitePlayer(username string) {
 
 func (g *Game) HasPlayer(username string) bool {
 	for uname := range g.playerUsernames {
-		log.Printf("Checking if user is in game: %s %q", g.id, uname)
+		logger.Gamesf("Checking if user is in game: %s %q", g.id, uname)
 		if uname == username {
 			return true
 		}
@@ -145,7 +145,7 @@ func (g *Game) GetID() uuid.UUID {
 }
 
 func (g *Game) GetHand(username string) []GardenCard {
-	log.Println("Getting hand for", username)
+	logger.Gamesln("Getting hand for", username)
 	for _, player := range g.players {
 		if player.Username == username {
 			return player.Hand
@@ -273,11 +273,11 @@ func (g *Game) Render(w io.Writer, username string) error {
 
 	<-g.readyChan
 
-	log.Println("Starting render for", playerToRenderFor.Username)
+	logger.Gamesln("Starting render for", playerToRenderFor.Username)
 
 	err := g.board.Render(w, playerToRenderFor, g)
 	if err != nil {
-		log.Printf("Failed to render for %s: %v", playerToRenderFor.Username, err)
+		logger.Gamesf("Failed to render for %s: %v", playerToRenderFor.Username, err)
 		return err
 	}
 
@@ -288,7 +288,7 @@ func (g *Game) Render(w io.Writer, username string) error {
 		case <-playerToRenderFor.Events:
 			err := g.board.Render(w, playerToRenderFor, g)
 			if err != nil {
-				log.Printf("Failed to render for %s: %v", playerToRenderFor.Username, err)
+				logger.Gamesf("Failed to render for %s: %v", playerToRenderFor.Username, err)
 				return err
 			}
 

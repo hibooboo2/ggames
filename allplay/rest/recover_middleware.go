@@ -2,9 +2,10 @@ package rest
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"runtime/debug"
+
+	"github.com/hibooboo2/glog"
 )
 
 func Recover(handler http.Handler) http.Handler {
@@ -16,7 +17,7 @@ func Recover(handler http.Handler) http.Handler {
 					"panic": fmt.Sprintf("%v", r),
 					"stack": string(stack),
 				})
-				log.Println("Stack:", string(stack))
+				glog.Println("Stack:", string(stack))
 			}
 		}()
 		handler.ServeHTTP(w, r)

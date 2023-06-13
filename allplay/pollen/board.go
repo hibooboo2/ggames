@@ -5,11 +5,12 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"log"
 	"math"
 	"strconv"
 	"strings"
 	"text/template"
+
+	"github.com/hibooboo2/ggames/allplay/logger"
 )
 
 type Board struct {
@@ -75,7 +76,7 @@ func (b *Board) GetTokensMustPlay() []Position {
 	if len(b.cards) == 0 {
 		return nil
 	}
-	log.Println("Getting tokens must play")
+	logger.Board("Getting tokens must play")
 	tokensMustPlay := map[Position]struct{}{}
 	for position, _ := range b.cards {
 		nw := Position{position.X + 0.5, position.Y + 0.5}
@@ -83,19 +84,19 @@ func (b *Board) GetTokensMustPlay() []Position {
 		ne := Position{position.X - 0.5, position.Y + 0.5}
 		se := Position{position.X - 0.5, position.Y - 0.5}
 
-		log.Println("Checking nw position for position", position)
+		logger.Board("Checking nw position for position", position)
 		if b.CanPlayToken(nw) == nil {
 			tokensMustPlay[nw] = struct{}{}
 		}
-		log.Println("Checking sw position for position", position)
+		logger.Board("Checking sw position for position", position)
 		if b.CanPlayToken(sw) == nil {
 			tokensMustPlay[sw] = struct{}{}
 		}
-		log.Println("Checking ne position for position", position)
+		logger.Board("Checking ne position for position", position)
 		if b.CanPlayToken(ne) == nil {
 			tokensMustPlay[ne] = struct{}{}
 		}
-		log.Println("Checking se position for position", position)
+		logger.Board("Checking se position for position", position)
 		if b.CanPlayToken(se) == nil {
 			tokensMustPlay[se] = struct{}{}
 		}
@@ -119,7 +120,7 @@ func (b *Board) PlayToken(position Position, token *PollinatorToken) error {
 func (b *Board) CanPlayToken(position Position) error {
 	_, fracX := math.Modf(math.Abs(position.X))
 	_, fracY := math.Modf(math.Abs(position.Y))
-	log.Println("Checking if can play: ", position, fracX, fracY)
+	logger.Board("Checking if can play: ", position, fracX, fracY)
 	if fracX != 0 || fracY != 0 {
 		return fmt.Errorf("invalid position for a token: %v X and Y positions must be whole numbers", position)
 	}

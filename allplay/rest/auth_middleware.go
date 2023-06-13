@@ -3,11 +3,11 @@ package rest
 import (
 	"context"
 	"encoding/base64"
-	"log"
 	"net/http"
 	"strings"
 	"text/template"
 
+	"github.com/hibooboo2/ggames/allplay/logger"
 	"github.com/hibooboo2/ggames/allplay/pollen/constants"
 	"github.com/hibooboo2/ggames/allplay/pollen/db"
 )
@@ -28,7 +28,7 @@ func BasicAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		username, c, isLoggedIn := db.IsLoggedIn(r, false)
 		if !isLoggedIn {
-			log.Println("Must login first")
+			logger.Authln("Must login first")
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
 		}
@@ -94,7 +94,6 @@ var loginPage = template.Must(template.New("login").Parse(`
 `))
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println(r.Method)
 	switch strings.ToUpper(r.Method) {
 	case http.MethodGet:
 		_, _, isLoggedIn := db.IsLoggedIn(r, false)
@@ -120,7 +119,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		http.SetCookie(w, us.Cookie())
-		log.Println("Logged in")
+		logger.Authln("Logged in", username)
 		http.Redirect(w, r, "/", http.StatusFound)
 	}
 

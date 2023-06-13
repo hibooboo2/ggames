@@ -1,10 +1,11 @@
-module github.com/hibooboo2/ggames
+module github.com/hibooboo2/ggames/allplay
 
 go 1.19
 
 require (
 	github.com/go-chi/chi v1.5.4
 	github.com/gofrs/uuid v4.4.0+incompatible
+	github.com/hibooboo2/glog v0.0.0-20230613000538-b614b6fca71b
 	github.com/stretchr/testify v1.8.4
 )
 

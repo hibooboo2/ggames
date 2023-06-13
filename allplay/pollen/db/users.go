@@ -5,11 +5,11 @@ import (
 	"crypto/subtle"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/hibooboo2/ggames/allplay/logger"
 	"github.com/hibooboo2/ggames/allplay/pollen/constants"
 )
 
@@ -123,16 +123,16 @@ func tmpLogin(r *http.Request) (*UserSession, bool) {
 	tempID := r.FormValue("anonymous")
 	if tempID != "" && IsTempID(tempID) {
 		InvalidateTempID(tempID)
-		log.Println("No active session and tempID found, creating temporary session")
+		logger.Authln("No active session and tempID found, creating temporary session")
 		tmpID := uuid.Must(uuid.NewV4())
 		err := RegisterUser(fmt.Sprintf("%s@jhrb.us", tmpID.String()), tmpID.String(), tmpID.String())
 		if err != nil {
-			log.Println("FAiled to create temporary session: ", err)
+			logger.Authln("FAiled to create temporary session: ", err)
 			return nil, false
 		}
 		us, err := Login(tmpID.String(), tmpID.String(), time.Hour*24*7, true)
 		if err != nil {
-			log.Println("Failed to login temporary session: ", err)
+			logger.Authln("Failed to login temporary session: ", err)
 			return nil, false
 		}
 		return us, true
@@ -142,17 +142,17 @@ func tmpLogin(r *http.Request) (*UserSession, bool) {
 
 func loginBasicAuth(r *http.Request, newSession bool) (*UserSession, bool) {
 	username, password, ok := r.BasicAuth()
-	log.Println("Basicauth: ", username)
+	logger.Authln("Basicauth: ", username)
 	if !ok {
-		log.Printf("No basic auth found")
+		logger.Authln("No basic auth found")
 		return nil, false
 	}
 
-	log.Println("Attempting to login with basic auth: ", username)
-	log.Println("password: ", password)
+	logger.Authln("Attempting to login with basic auth: ", username)
+	logger.Authln("password: ", password)
 	us, err := Login(username, password, constants.SessionTimeout, newSession)
 	if err != nil {
-		log.Printf("Login failed: %q %v", username, err)
+		logger.Authf("Login failed: %q %v", username, err)
 		return nil, false
 	}
 	return us, true
@@ -161,7 +161,7 @@ func loginBasicAuth(r *http.Request, newSession bool) (*UserSession, bool) {
 func hasCookieSession(r *http.Request) (*UserSession, bool) {
 	c, err := r.Cookie(constants.SessionCookieName)
 	if err != nil {
-		log.Printf("No cookie found: %v", err)
+		logger.Authf("No cookie found: %v", err)
 		return nil, false
 	}
 
@@ -169,11 +169,11 @@ func hasCookieSession(r *http.Request) (*UserSession, bool) {
 
 	us, ok := sessions[sessionID]
 	if !ok {
-		log.Println("No session found")
+		logger.Authln("No session found")
 		return nil, false
 	}
 	if time.Now().After(us.Expiry) {
-		log.Println("Session expired")
+		logger.Authln("Session expired")
 		delete(sessions, sessionID)
 		return nil, false
 	}
@@ -183,7 +183,7 @@ func hasCookieSession(r *http.Request) (*UserSession, bool) {
 		us.Expiry = time.Now().Add(constants.SessionTimeout)
 	}
 
-	log.Println("Is logged in")
+	logger.Authln("Is logged in")
 	return us, true
 }
 

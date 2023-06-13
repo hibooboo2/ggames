@@ -1,14 +1,15 @@
 package rest
 
 import (
-	"log"
 	"net/http"
+
+	"github.com/hibooboo2/glog"
 )
 
 func LogRequest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("%s %s %s", r.RemoteAddr, r.Method, r.URL)
+		glog.Debugf("%s %s %s", r.RemoteAddr, r.Method, r.URL)
 		next.ServeHTTP(w, r)
-		log.Printf("REQUEST END\n\n\n\n")
+		glog.Debug("REQUEST END\n\n\n\n")
 	})
 }
