@@ -7,55 +7,54 @@ import (
 )
 
 var (
-	LAuth     = allplayLogger.RegisterNextLevel("AUTH")
-	LBoard    = allplayLogger.RegisterNextLevel("BOARD")
-	LCards    = allplayLogger.RegisterNextLevel("CARDS")
-	LGames    = allplayLogger.RegisterNextLevel("GAMES")
-	LInit     = allplayLogger.RegisterNextLevel("INIT")
-	LPlayer   = allplayLogger.RegisterNextLevel("PLAYERS")
-	LPosition = allplayLogger.RegisterNextLevel("POSITION")
-	LScore    = allplayLogger.RegisterNextLevel("SCORE")
-	LToken    = allplayLogger.RegisterNextLevel("TOKEN")
-	LUsers    = allplayLogger.RegisterNextLevel("USERS")
+	LAuth     = glog.RegisterNextLevel("AUTH")
+	LBoard    = glog.RegisterNextLevel("BOARD")
+	LCards    = glog.RegisterNextLevel("CARDS")
+	LGames    = glog.RegisterNextLevel("GAMES")
+	LInit     = glog.RegisterNextLevel("INIT")
+	LPlayer   = glog.RegisterNextLevel("PLAYERS")
+	LPosition = glog.RegisterNextLevel("POSITION")
+	LScore    = glog.RegisterNextLevel("SCORE")
+	LToken    = glog.RegisterNextLevel("TOKEN")
+	LUsers    = glog.RegisterNextLevel("USERS")
 	All       = LCards | LGames | LBoard | LAuth | LUsers | LPlayer | LInit | LToken | LScore
 )
 
 func init() {
-	// LInit = allplayLogger.RegisterNextLevel("INIT")
-
 	SetPrefix("ALLPLAY")
 	SetLevel(glog.LevelDebug | LScore | LPlayer | LPosition | LToken | LGames | All)
 	glog.DefaultLogger = glog.NewLogger(os.Stdout, glog.DefaultLevel)
+
 }
 
-var allplayLogger = glog.DefaultLogger
+var allpplayLogger = glog.DefaultLogger
 
 var (
-	SetPrefix = allplayLogger.SetPrefix
-	SetLevel  = allplayLogger.SetLevel
-	AtLevel   = allplayLogger.AtLevel
-	AtLevelf  = allplayLogger.AtLevelf
-	AtLevelln = allplayLogger.AtLevelln
-	Auth      = allplayLogger.CustomLogAtLevel(LAuth)
-	Authf     = allplayLogger.CustomLogAtLevelf(LAuth)
-	Authln    = allplayLogger.CustomLogAtLevelln(LAuth)
-	Board     = allplayLogger.CustomLogAtLevel(LBoard)
-	Boardf    = allplayLogger.CustomLogAtLevelf(LBoard)
-	Boardln   = allplayLogger.CustomLogAtLevelln(LBoard)
-	Cards     = allplayLogger.CustomLogAtLevel(LCards)
-	Cardsf    = allplayLogger.CustomLogAtLevelf(LCards)
-	Cardsln   = allplayLogger.CustomLogAtLevelln(LCards)
-	Games     = allplayLogger.CustomLogAtLevel(LGames)
-	Gamesf    = allplayLogger.CustomLogAtLevelf(LGames)
-	Gamesln   = allplayLogger.CustomLogAtLevelln(LGames)
-	Initf     = allplayLogger.CustomLogAtLevelf(LInit)
-	Player    = allplayLogger.CustomLogAtLevel(LPlayer)
-	Playerf   = allplayLogger.CustomLogAtLevelf(LPlayer)
-	Playerln  = allplayLogger.CustomLogAtLevelln(LPlayer)
-	Token     = allplayLogger.CustomLogAtLevel(LToken)
-	Tokenf    = allplayLogger.CustomLogAtLevelf(LToken)
-	Tokenln   = allplayLogger.CustomLogAtLevelln(LToken)
-	Users     = allplayLogger.CustomLogAtLevel(LUsers)
-	Usersf    = allplayLogger.CustomLogAtLevelf(LUsers)
-	Usersln   = allplayLogger.CustomLogAtLevelln(LUsers)
+	SetPrefix = glog.SetPrefix
+	SetLevel  = glog.SetLevel
+	AtLevel   = glog.AtLevel
+	AtLevelf  = glog.AtLevelf
+	AtLevelln = glog.AtLevelln
+	Auth      = glog.CustomLogAtLevel(LAuth)
+	Authf     = glog.CustomLogAtLevelf(LAuth)
+	Authln    = glog.CustomLogAtLevelln(LAuth)
+	Board     = glog.CustomLogAtLevel(LBoard)
+	Boardf    = glog.CustomLogAtLevelf(LBoard)
+	Boardln   = glog.CustomLogAtLevelln(LBoard)
+	Cards     = glog.CustomLogAtLevel(LCards)
+	Cardsf    = glog.CustomLogAtLevelf(LCards)
+	Cardsln   = glog.CustomLogAtLevelln(LCards)
+	Games     = glog.CustomLogAtLevel(LGames)
+	Gamesf    = glog.CustomLogAtLevelf(LGames)
+	Gamesln   = glog.CustomLogAtLevelln(LGames)
+	Initf     = glog.CustomLogAtLevelf(LInit)
+	Player    = glog.CustomLogAtLevel(LPlayer)
+	Playerf   = glog.CustomLogAtLevelf(LPlayer)
+	Playerln  = glog.CustomLogAtLevelln(LPlayer)
+	Token     = glog.CustomLogAtLevel(LToken)
+	Tokenf    = glog.CustomLogAtLevelf(LToken)
+	Tokenln   = glog.CustomLogAtLevelln(LToken)
+	Users     = glog.CustomLogAtLevel(LUsers)
+	Usersf    = glog.CustomLogAtLevelf(LUsers)
+	Usersln   = glog.CustomLogAtLevelln(LUsers)
 )
