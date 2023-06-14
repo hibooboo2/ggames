@@ -44,7 +44,7 @@
             </div>
             <div class="center">
                 {{range $position, $card := .Cards}}
-                    <div class="card" style="{{ cardStyle $card $position }}">
+                    <div class="card" style="left: {{ offset $position.X 0 }}px; bottom: {{ offset $position.Y 0 }}px">
                         <div>
                             <img class="card" src="/static/images/{{ $card.Name }}.png" title="{{ $card.Name }}"/>
                             {{ if $debug }}
@@ -54,7 +54,7 @@
                     </div>
                 {{end}}
                 {{range $position, $token :=.Tokens}}
-                    <div class="token" style="{{ tokenStyle $token $position }}">
+                    <div class="token" style="left: {{ offset $position.X 15 }}px; bottom: {{ offset $position.Y 15 }}px">
                         {{ if $token.IsSurrounded }}
                             <img class="token" src="/static/images/Token_Back.jpg" onmouseover="this.src='/static/images/{{ $token.Type.Image }}';" onmouseout="this.src='/static/images/Token_Back.jpg';" x="{{ $position.X }}" y="{{ $position.Y }}"/>
                         {{ else }}
@@ -68,19 +68,21 @@
                 {{if .IsPlayerTurn }}
                     {{ if .PlayableTokenPositions }}
                         {{range $position := .PlayableTokenPositions}}
-                            <div class="token" style="{{ playableTokenStyle $position 0 }}" onclick='playToken("{{$gameID}}",{{$position.X}},{{$position.Y}})'>
+                            <div class="token" style="background:black; opacity: 0.5; left: {{ offset $position.X 15 }}px; bottom: {{ offset $position.Y 15 }}px;" onclick='playToken("{{$gameID}}",{{$position.X}},{{$position.Y}})'>
                             </div>
                         {{end}}
                     {{ else }}
-                        {{range $position, $empty := .PlayableCards}}
-                        <div class="playableCard {{$hints}}" style="{{ playableStyle $position 0 }}" onclick='playCard("{{$gameID}}",getCardToPlay(),{{$position.X}},{{$position.Y}})'>
-                            <div>
-                                <img class="card" src="/static/images/Back_{{$player.Color}}.png"/>
-                                {{ if $debug }}
-                                    <div class="centered"> Position {{ $position }}</div>
-                                {{end}}
+                        {{ if $hints }}
+                            {{ range $position, $empty := .PlayableCards }}
+                            <div class="playableCard" style="left: {{ offset $position.X 0 }}px; bottom: {{ offset $position.Y 0 }}px" onclick='playCard("{{$gameID}}",getCardToPlay(),{{$position.X}},{{$position.Y}})'>
+                                <div>
+                                    <img class="card" src="/static/images/Back_{{$player.Color}}.png"/>
+                                    {{ if $debug }}
+                                        <div class="centered"> Position {{ $position }}</div>
+                                    {{end}}
+                                </div>
                             </div>
-                        </div>
+                            {{ end }}
                         {{ end }}
                     {{ end }}
 

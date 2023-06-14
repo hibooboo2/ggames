@@ -279,25 +279,8 @@ func (b *Board) GameOver() bool {
 }
 
 var boardFuncs = template.FuncMap{
-	"tokenStyle": func(t *token.PollinatorToken, p position.Position) string {
-		tokenStyle := fmt.Sprintf(`background-color: %s; left: %dpx; bottom: %dpx;`,
-			t.Type.Color(), int((p.X*2*25)+15), int((p.Y*2*25)+15))
-		return tokenStyle
-	},
-	"playableTokenStyle": func(p position.Position, o interface{}) string {
-		tokenStyle := fmt.Sprintf(`background-color: black; opacity: 0.5; left: %dpx; bottom: %dpx;`,
-			int((p.X*2*25)+15), int((p.Y*2*25)+15))
-		return tokenStyle
-	},
-	"cardStyle": func(card *GardenCard, p position.Position) string {
-		cardStyle := fmt.Sprintf(`background-color: %s; left: %dpx; bottom: %dpx;`,
-			card.Color, int(p.X*2*25), int(p.Y*2*25))
-		return cardStyle
-	},
-	"playableStyle": func(p position.Position, o interface{}) string {
-		tokenStyle := fmt.Sprintf(`left: %dpx; bottom: %dpx;`,
-			int(p.X*2*25), int(p.Y*2*25))
-		return tokenStyle
+	"offset": func(v float64, o int) int {
+		return int(v*2*25) + o
 	},
 }
 
@@ -342,6 +325,7 @@ func (b *Board) Render(w io.Writer, p *Player, g *Game) error {
 		return err
 	}
 
+	logger.Boardln("Rendering board:", p.Color)
 	fmt.Fprintf(w, "data: %s\n\n", base64.StdEncoding.EncodeToString(buff.Bytes()))
 	return nil
 }
