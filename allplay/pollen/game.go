@@ -277,14 +277,18 @@ func (g *Game) PlayToken(username string, tokenID uuid.UUID, position position.P
 	return nil
 }
 
-func (g *Game) Render(w io.Writer, username string) error {
+type FlusherWriter interface {
+	io.Writer
+	http.Flusher
+}
+
+func (g *Game) Render(w FlusherWriter, username string) error {
 	var playerToRenderFor *Player
 	for _, player := range g.players {
 		if player.Username == username {
 			playerToRenderFor = player
 		}
 	}
-	flusher := w.(http.Flusher)
 
 	if playerToRenderFor == nil {
 		_, isjoined := g.playerUsernames[username]
@@ -296,7 +300,7 @@ func (g *Game) Render(w io.Writer, username string) error {
 		timer := time.After(time.Second * 10)
 
 		fmt.Fprintf(w, "data: game_not_started\n\n")
-		flusher.Flush()
+		w.Flush()
 
 		for playerToRenderFor == nil {
 			select {
@@ -313,7 +317,7 @@ func (g *Game) Render(w io.Writer, username string) error {
 	}
 
 	fmt.Fprintf(w, "data: waiting\n\n")
-	flusher.Flush()
+	w.Flush()
 
 	<-g.readyChan
 
@@ -322,10 +326,10 @@ func (g *Game) Render(w io.Writer, username string) error {
 	err := g.board.Render(w, playerToRenderFor, g)
 	if err != nil {
 		logger.Gamesf("Failed to render for %s: %v", playerToRenderFor.Username, err)
-		return err
+		fmt.Fprintf(w, "data: error %q\n\n", err.Error())
 	}
 
-	flusher.Flush()
+	w.Flush()
 
 	for {
 		select {
@@ -333,11 +337,12 @@ func (g *Game) Render(w io.Writer, username string) error {
 			err := g.board.Render(w, playerToRenderFor, g)
 			if err != nil {
 				logger.Gamesf("Failed to render for %s: %v", playerToRenderFor.Username, err)
-				return err
+				fmt.Fprintf(w, "data: error %q\n\n", err.Error())
 			}
 
-			flusher.Flush()
+			w.Flush()
 		case <-g.done:
+			w.Flush()
 			return nil
 		}
 	}

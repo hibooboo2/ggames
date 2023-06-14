@@ -1,103 +1,117 @@
-{{define "board"}}
-    {{ $debug :=.Debug }}
-    {{ $hints :=.HintsOn }}
-    {{ $player :=.Player}}
-    {{ $gameID :=.GameID}}
-    <div class="board">
-        <button class="right" id="hintsToggle" onclick='toggleHints("{{ $gameID }}")'>
-            Toggle Hints
+{{define "gameover"}}
+    <div class="centered gameover">
+        <h1>
+            Game Over
+            {{/* {{ .Winner }} wins the game with {{ .Winner.Score }} */}}
+        </h1>
+        {{ range $color , $score := .Scores }}
+                <p>{{ $color }} Bees: {{ $score.BeeMeeples}} Junebugs: {{ $score.JunebugMeeples }} Butterflys: {{ $score.ButterflyMeeples }} </p>
+        {{ end }}
+        <button type="button" class="secondary-button" onclick='newGame()'>
+            New Game
         </button>
-        <div class="scores">
-            {{ if .GameOver }}
-            <script>
-                alert("Game Over")
-            </script>
-            {{ end }}
+    </div>
+{{end}}
+
+{{define "board"}}
+    {{ if .GameOver }}
+        {{ template "gameover" .Scores }}
+    {{ else }}
+        {{ $debug :=.Debug }}
+        {{ $hints :=.HintsOn }}
+        {{ $player :=.Player}}
+        {{ $gameID :=.GameID}}
+        <div class="board">
+            <button class="right" id="hintsToggle" onclick='toggleHints("{{ $gameID }}")'>
+                Toggle Hints
+            </button>
             {{ if .Scores }}
-                <p>Bee Meeples Left: {{ .Scores.BeeMeeplesLeft }}</p>
-                <p>Junebug Meeples Left: {{ .Scores.JunebugMeeplesLeft }}</p>
-                <p>Butterfly Meeples Left: {{ .Scores.ButterflyMeeplesLeft }}</p>
-                {{ range $color , $score := .Scores.Scores }}
-                    <p>{{ $color }} Bees: {{ $score.BeeMeeples}} Junebugs: {{ $score.JunebugMeeples }} Butterflys: {{ $score.ButterflyMeeples }} </p>
-                {{ end }}
+                <div class="scores">
+                        <p>Bee Meeples Left: {{ .Scores.BeeMeeplesLeft }}</p>
+                        <p>Junebug Meeples Left: {{ .Scores.JunebugMeeplesLeft }}</p>
+                        <p>Butterfly Meeples Left: {{ .Scores.ButterflyMeeplesLeft }}</p>
+                        {{ range $color , $score := .Scores.Scores }}
+                            <p>{{ $color }} Bees: {{ $score.BeeMeeples}} Junebugs: {{ $score.JunebugMeeples }} Butterflys: {{ $score.ButterflyMeeples }} </p>
+                        {{ end }}
+                </div>
             {{ end}}
-        </div>
-        <div class="info">
-            {{ if .IsPlayerTurn }}
-                It is your turn.
-            {{ else }}
-                Waiting on opponent's turn to finish.
-            {{ end }}
-        </div>
-        <div class="center">
-            {{range $position, $card := .Cards}}
-                <div class="card" style="{{ cardStyle $card $position }}">
-                    <div>
-                        <img class="card" src="/static/images/{{ $card.Name }}.png" title="{{ $card.Name }}"/>
-                        {{ if $debug }}
-                            <div class="centered"> Position {{ $position }}</div>
-                        {{end}}
-                    </div>
-                </div>
-            {{end}}
-            {{range $position, $token :=.Tokens}}
-                <div class="token" style="{{ tokenStyle $token $position }}">
-                    {{ if $token.IsSurrounded }}
-                        <img class="token" src="/static/images/Token_Back.jpg" onmouseover="this.src='/static/images/{{ $token.Type.Image }}';" onmouseout="this.src='/static/images/Token_Back.jpg';" x="{{ $position.X }}" y="{{ $position.Y }}"/>
-                    {{ else }}
-                        <img class="token" src="/static/images/{{ $token.Type.Image }}" x="{{ $position.X }}" y="{{ $position.Y }}"/>
-                    {{ end}}
-                    {{ if $debug }}
-                        {{$token.Type}}
-                    {{ end }}
-                </div>
-            {{end}}
-            {{if .IsPlayerTurn }}
-                {{ if .PlayableTokenPositions }}
-                    {{range $position := .PlayableTokenPositions}}
-                        <div class="token" style="{{ playableTokenStyle $position 0 }}" onclick='playToken("{{$gameID}}",{{$position.X}},{{$position.Y}})'>
-                        </div>
-                    {{end}}
+            <div class="info">
+                {{ if .IsPlayerTurn }}
+                    It is your turn.
                 {{ else }}
-                    {{range $position, $empty := .PlayableCards}}
-                    <div class="playableCard {{$hints}}" style="{{ playableStyle $position 0 }}" onclick='playCard("{{$gameID}}",getCardToPlay(),{{$position.X}},{{$position.Y}})'>
+                    Waiting on opponent's turn to finish.
+                {{ end }}
+            </div>
+            <div class="center">
+                {{range $position, $card := .Cards}}
+                    <div class="card" style="{{ cardStyle $card $position }}">
                         <div>
-                            <img class="card" src="/static/images/Back_{{$player.Color}}.png"/>
+                            <img class="card" src="/static/images/{{ $card.Name }}.png" title="{{ $card.Name }}"/>
                             {{ if $debug }}
                                 <div class="centered"> Position {{ $position }}</div>
                             {{end}}
                         </div>
                     </div>
+                {{end}}
+                {{range $position, $token :=.Tokens}}
+                    <div class="token" style="{{ tokenStyle $token $position }}">
+                        {{ if $token.IsSurrounded }}
+                            <img class="token" src="/static/images/Token_Back.jpg" onmouseover="this.src='/static/images/{{ $token.Type.Image }}';" onmouseout="this.src='/static/images/Token_Back.jpg';" x="{{ $position.X }}" y="{{ $position.Y }}"/>
+                        {{ else }}
+                            <img class="token" src="/static/images/{{ $token.Type.Image }}" x="{{ $position.X }}" y="{{ $position.Y }}"/>
+                        {{ end}}
+                        {{ if $debug }}
+                            {{$token.Type}}
+                        {{ end }}
+                    </div>
+                {{end}}
+                {{if .IsPlayerTurn }}
+                    {{ if .PlayableTokenPositions }}
+                        {{range $position := .PlayableTokenPositions}}
+                            <div class="token" style="{{ playableTokenStyle $position 0 }}" onclick='playToken("{{$gameID}}",{{$position.X}},{{$position.Y}})'>
+                            </div>
+                        {{end}}
+                    {{ else }}
+                        {{range $position, $empty := .PlayableCards}}
+                        <div class="playableCard {{$hints}}" style="{{ playableStyle $position 0 }}" onclick='playCard("{{$gameID}}",getCardToPlay(),{{$position.X}},{{$position.Y}})'>
+                            <div>
+                                <img class="card" src="/static/images/Back_{{$player.Color}}.png"/>
+                                {{ if $debug }}
+                                    <div class="centered"> Position {{ $position }}</div>
+                                {{end}}
+                            </div>
+                        </div>
+                        {{ end }}
                     {{ end }}
-                {{ end }}
 
-            {{ end}}
-            <div class="bottom hand">
-                <div class="tokenHolder">
-                    {{ range $tokenNum, $token := .TokensCanPlay }}
-                        <div class="handToken" id="{{ $token.ID }}" onclick='setTokenToPlay("{{ $token.ID }}")'>
-                            <div>
-                                <img class="handToken" id="{{ $token.ID }}_img" src="/static/images/{{ $token.Type.Image }}"/>
-                                {{ if $debug }}
-                                    <div class="centered"> Position {{ $tokenNum }}</div>
-                                {{end}}
+                {{ end}}
+                <div class="bottom hand">
+                    <div class="tokenHolder">
+                        {{ range $tokenNum, $token := .TokensCanPlay }}
+                            <div class="handToken" id="{{ $token.ID }}" onclick='setTokenToPlay("{{ $token.ID }}")'>
+                                <div>
+                                    <img class="handToken" id="{{ $token.ID }}_img" src="/static/images/{{ $token.Type.Image }}"/>
+                                    {{ if $debug }}
+                                        <div class="centered"> Position {{ $tokenNum }}</div>
+                                    {{end}}
+                                </div>
                             </div>
-                        </div>
-                    {{ end }}
-                </div>
-                <div class="cardHolder">
-                    {{range $cardNum, $card := .Hand}}
-                        <div class="handCard" id="{{ $card.ID }}" onclick='setCardToPlay("{{ $card.ID }}")'>
-                            <div>
-                                <img class="handCard" id="{{ $card.ID }}_img" src="/static/images/{{ $card.Name }}.png"/>
-                                {{ if $debug }}
-                                    <div class="centered"> Position {{ $cardNum }}</div>
-                                {{end}}
+                        {{ end }}
+                    </div>
+                    <div class="cardHolder">
+                        {{range $cardNum, $card := .Hand}}
+                            <div class="handCard" id="{{ $card.ID }}" onclick='setCardToPlay("{{ $card.ID }}")'>
+                                <div>
+                                    <img class="handCard" id="{{ $card.ID }}_img" src="/static/images/{{ $card.Name }}.png"/>
+                                    {{ if $debug }}
+                                        <div class="centered"> Position {{ $cardNum }}</div>
+                                    {{end}}
+                                </div>
                             </div>
-                        </div>
-                    {{end}}
+                        {{end}}
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+    {{end}}
 {{end}}

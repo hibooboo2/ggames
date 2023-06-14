@@ -1,0 +1,19 @@
+{{define "404"}}
+    <!DOCTYPE html>
+    <html lang="en">
+        <head>
+            <link rel="stylesheet" type="text/css" href="/static/css/main.css" />
+        </head>
+        <body>
+            <div class="centered notfound">
+                Not Found 
+                <p>
+                    {{ .URL }}
+                </p>
+                <button type="button" class="secondary-button" onclick='window.location.href="/login"'>
+                    Login
+                </button>
+            </div>
+        </body>
+    </html>
+{{end}}

@@ -57,4 +57,24 @@ var (
 	Users     = glog.CustomLogAtLevel(LUsers)
 	Usersf    = glog.CustomLogAtLevelf(LUsers)
 	Usersln   = glog.CustomLogAtLevelln(LUsers)
+
+	Debug   = glog.Debug
+	Debugf  = glog.Debugf
+	Debugln = glog.Debugln
+
+	Info   = glog.Info
+	Infof  = glog.Infof
+	Infoln = glog.Infoln
+
+	Warn   = glog.Warn
+	Warnf  = glog.Warnf
+	Warnln = glog.Warnln
+
+	Error   = glog.Error
+	Errorf  = glog.Errorf
+	Errorln = glog.Errorln
+
+	Fatal   = glog.Fatal
+	Fatalf  = glog.Fatalf
+	Fatalln = glog.Fatalln
 )

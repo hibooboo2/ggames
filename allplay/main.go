@@ -18,6 +18,7 @@ func main() {
 	// logger.SetFlags(logger.Lshortfile)
 
 	r := chi.NewRouter()
+	r.NotFound(notFoundHandler)
 	r.Handle("/static/js/{filename}", http.StripPrefix("/static/js/", http.FileServer(http.Dir("./pollen/static/js"))))
 	r.Handle("/static/images/{imagename}", http.StripPrefix("/static/images/", http.FileServer(http.Dir("./pollen/static/images/"))))
 	r.Handle("/static/css/{filename}", http.StripPrefix("/static/css/", http.FileServer(http.Dir("./pollen/static/css/"))))
@@ -174,13 +175,19 @@ func renderGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fw, ok := w.(pollen.FlusherWriter)
+	if !ok {
+		http.Error(w, "Event Streaming unsupported", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
-	err = g.Render(w, rest.GetUsername(r))
+	err = g.Render(fw, rest.GetUsername(r))
 	if err != nil {
 		rest.RespondError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -268,4 +275,24 @@ func toggleHints(w http.ResponseWriter, r *http.Request) {
 	g.ToggleHints(username)
 
 	w.WriteHeader(http.StatusAccepted)
+}
+
+func notFoundHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusNotFound)
+	t, err := pollen.LoadTemplate("404.html.tmpl")
+	if err != nil {
+		panic(err)
+	}
+	var info = struct {
+		URL string
+	}{
+		URL: r.URL.String(),
+	}
+
+	err = t.ExecuteTemplate(w, "404", info)
+	if err != nil {
+		rest.RespondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 }

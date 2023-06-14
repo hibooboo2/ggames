@@ -114,3 +114,23 @@ p {
     color: #00FF00;
     font-size: 5px;
 }
+
+.gameover {
+    color: grey;
+    position: fixed;
+    z-index: 100;
+    font-size: 2em;
+}
+
+.secondary-button {
+    background-color: aqua;
+    color: white;
+    border-radius: 4px;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+    font-size: 2em;
+}
+
+.notfound {
+    color: red;
+    font-size: 3em;
+}

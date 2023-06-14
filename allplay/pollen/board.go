@@ -4,11 +4,9 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
+	"html/template"
 	"io"
 	"math"
-	"os"
-	"text/template"
-	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/hibooboo2/ggames/allplay/logger"
@@ -280,64 +278,38 @@ func (b *Board) GameOver() bool {
 	return b.g.AllPlayersOutOfCards() || b.Scores.OutOfMeeples() || b.g.tokenBag.OutOfTokens()
 }
 
-var boardTmpl *template.Template
-var boardTmplLastUpdated time.Time
-
-func init() {
-	boardTmpl = parseBoardTmpl()
-}
-
-func parseBoardTmpl() *template.Template {
-	boardFile := "./pollen/static/views/board.html.tmpl"
-	info, err := os.Lstat(boardFile)
-	if os.IsNotExist(err) {
-		logger.Initf("%q not found", boardFile)
-		return nil
-	}
-
-	if boardTmplLastUpdated == info.ModTime() {
-		logger.Boardf("%q is up-to-date", boardFile)
-		return boardTmpl
-	}
-
-	boardTmplLastUpdated = info.ModTime()
-
-	logger.Initf("Lstat %q: %v", boardFile, err)
-	logger.Initf("Parsing %q", boardFile)
-	return template.Must(template.New("board").Funcs(template.FuncMap{
-		"tokenStyle": func(t *token.PollinatorToken, p position.Position) string {
-			tokenStyle := fmt.Sprintf(`background-color: %s; left: %dpx; bottom: %dpx;`,
-				t.Type.Color(), int((p.X*2*25)+15), int((p.Y*2*25)+15))
-			return tokenStyle
-		},
-		"playableTokenStyle": func(p position.Position, o interface{}) string {
-			tokenStyle := fmt.Sprintf(`background-color: black; opacity: 0.5; left: %dpx; bottom: %dpx;`,
-				int((p.X*2*25)+15), int((p.Y*2*25)+15))
-			return tokenStyle
-		},
-		"cardStyle": func(card *GardenCard, p position.Position) string {
-			cardStyle := fmt.Sprintf(`background-color: %s; left: %dpx; bottom: %dpx;`,
-				card.Color, int(p.X*2*25), int(p.Y*2*25))
-			return cardStyle
-		},
-		"playableStyle": func(p position.Position, o interface{}) string {
-			tokenStyle := fmt.Sprintf(`left: %dpx; bottom: %dpx;`,
-				int(p.X*2*25), int(p.Y*2*25))
-			return tokenStyle
-		},
-	}).ParseFiles(boardFile))
+var boardFuncs = template.FuncMap{
+	"tokenStyle": func(t *token.PollinatorToken, p position.Position) string {
+		tokenStyle := fmt.Sprintf(`background-color: %s; left: %dpx; bottom: %dpx;`,
+			t.Type.Color(), int((p.X*2*25)+15), int((p.Y*2*25)+15))
+		return tokenStyle
+	},
+	"playableTokenStyle": func(p position.Position, o interface{}) string {
+		tokenStyle := fmt.Sprintf(`background-color: black; opacity: 0.5; left: %dpx; bottom: %dpx;`,
+			int((p.X*2*25)+15), int((p.Y*2*25)+15))
+		return tokenStyle
+	},
+	"cardStyle": func(card *GardenCard, p position.Position) string {
+		cardStyle := fmt.Sprintf(`background-color: %s; left: %dpx; bottom: %dpx;`,
+			card.Color, int(p.X*2*25), int(p.Y*2*25))
+		return cardStyle
+	},
+	"playableStyle": func(p position.Position, o interface{}) string {
+		tokenStyle := fmt.Sprintf(`left: %dpx; bottom: %dpx;`,
+			int(p.X*2*25), int(p.Y*2*25))
+		return tokenStyle
+	},
 }
 
 func (b *Board) Render(w io.Writer, p *Player, g *Game) error {
-	if boardTmpl == nil {
-		return fmt.Errorf("no board template found")
+	boardTmpl, err := LoadTemplate("./pollen/static/views/board.html.tmpl", boardFuncs)
+	if err != nil {
+		return fmt.Errorf("board template not found: %w", err)
 	}
-
-	boardTmpl = parseBoardTmpl()
 
 	buff := bytes.NewBuffer(nil)
 	tokensMustPlay := b.GetTokensMustPlay()
-	err := boardTmpl.ExecuteTemplate(buff, "board", struct {
+	err = boardTmpl.ExecuteTemplate(buff, "board", struct {
 		Cards                  map[position.Position]*GardenCard
 		Tokens                 map[position.Position]*token.PollinatorToken
 		PlayableCards          map[position.Position]struct{}
