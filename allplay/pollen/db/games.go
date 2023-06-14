@@ -15,7 +15,7 @@ func NewGame(id uuid.UUID, username string) error {
 		return errors.New("game already exists")
 	}
 
-	g := pollen.NewGame(id, username, "Like you've never danced before:", len(games)+1)
+	g := pollen.NewGame(id, username, id.String())
 
 	g.AddPlayer(username)
 	games[id] = g

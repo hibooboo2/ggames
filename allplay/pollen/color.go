@@ -3,7 +3,7 @@ package pollen
 type Color int
 
 const (
-	Purple Color = iota
+	Purple Color = 1 << iota
 	Green
 	Pink
 	Orange

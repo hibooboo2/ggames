@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/gofrs/uuid"
+	"github.com/hibooboo2/ggames/allplay/pollen/position"
 )
 
 func GetGameID(r *http.Request) uuid.UUID {
@@ -25,14 +26,14 @@ func GetTokenID(r *http.Request) uuid.UUID {
 	return tokenID
 }
 
-func GetPosition(r *http.Request) Position {
+func GetPosition(r *http.Request) position.Position {
 	positionString := r.FormValue("position")
 	if positionString == "" {
 		panic("position is empty")
 	}
-	position, err := ParsePosition(positionString)
+	p, err := position.ParsePosition(positionString)
 	if err != nil {
 		panic(err)
 	}
-	return *position
+	return *p
 }

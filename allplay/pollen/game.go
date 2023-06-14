@@ -11,6 +11,8 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/hibooboo2/ggames/allplay/logger"
+	"github.com/hibooboo2/ggames/allplay/pollen/position"
+	"github.com/hibooboo2/ggames/allplay/pollen/token"
 )
 
 func init() {
@@ -25,7 +27,7 @@ type Game struct {
 	invitedUsers       map[string]struct{}
 	playerUsernames    map[string]struct{}
 	activePlayerCursor int
-	tokenBag           *TokenBag
+	tokenBag           *token.TokenBag
 	board              *Board
 	events             chan struct{}
 	done               chan struct{}
@@ -34,12 +36,12 @@ type Game struct {
 	AutoToken          bool
 }
 
-func NewGame(id uuid.UUID, username string, gameName string, i int) *Game {
+func NewGame(id uuid.UUID, username string, gameName string) *Game {
 	g := &Game{
 		id:              id,
 		owner:           username,
-		name:            fmt.Sprintf("%q %d", gameName, i),
-		tokenBag:        NewTokenBag(),
+		name:            gameName,
+		tokenBag:        token.NewTokenBag(true),
 		events:          make(chan struct{}),
 		done:            make(chan struct{}),
 		readyChan:       make(chan struct{}),
@@ -48,6 +50,16 @@ func NewGame(id uuid.UUID, username string, gameName string, i int) *Game {
 	}
 	g.AddPlayer(username)
 	return g
+}
+
+func (g *Game) AllPlayersOutOfCards() bool {
+	out := 0
+	for _, player := range g.players {
+		if player.OutOfCards() {
+			out++
+		}
+	}
+	return out == len(g.players)
 }
 
 func (g *Game) Name() string {
@@ -72,16 +84,18 @@ func (g *Game) Start() error {
 	}
 	sort.Strings(usernames)
 
-	for i, user := range usernames {
-		g.players = append(g.players, NewPlayer(user, len(g.playerUsernames), Color(i)))
+	c := Purple
+	for _, user := range usernames {
+		g.players = append(g.players, NewPlayer(user, len(g.playerUsernames), c))
+		c = 1 << c
 	}
 
 	for _, p := range g.players {
 		logger.Games(p.Username, p.Color)
 	}
-	tks := g.tokenBag.GetTokens(1)
-	g.tokenBag.ConsumeTokens(tks)
-	g.board = NewBoard(tks[0])
+	tk := g.tokenBag.TakeNextToken()
+	logger.AtLevel(logger.LBoard|logger.LGames|logger.LToken, fmt.Sprintf("Token %v retrived from bag", tk))
+	g.board = NewBoard(tk, g)
 	go func() {
 		for range g.events {
 			for _, p := range g.players {
@@ -163,6 +177,10 @@ func (g *Game) GetHand(username string) []GardenCard {
 }
 
 func (g *Game) NextPlayer() error {
+	if g.board.GameOver() {
+		return errors.New("game is over")
+	}
+
 	if err := g.board.MustPlayToken(); err != nil {
 		return fmt.Errorf("current player must place a token: %w", err)
 	}
@@ -173,14 +191,14 @@ func (g *Game) NextPlayer() error {
 	return nil
 }
 
-func (g *Game) MustPlayTokens() []Position {
+func (g *Game) MustPlayTokens() []position.Position {
 	if g.board.MustPlayToken() == nil {
 		return nil
 	}
 	return g.board.GetTokensMustPlay()
 }
 
-func (g *Game) PlayCard(username string, card uuid.UUID, position Position) error {
+func (g *Game) PlayCard(username string, card uuid.UUID, position position.Position) error {
 	defer func() { g.events <- struct{}{} }()
 	p := g.activePlayer()
 	if p.Username != username {
@@ -216,7 +234,6 @@ func (g *Game) PlayCard(username string, card uuid.UUID, position Position) erro
 			if err != nil {
 				return fmt.Errorf("failed to play token: %w", err)
 			}
-			g.tokenBag.ConsumeToken(tks[0].ID)
 		}
 	}
 
@@ -238,7 +255,7 @@ func (g *Game) GetNextTokenID() *uuid.UUID {
 	return &tokens[0].ID
 }
 
-func (g *Game) PlayToken(username string, tokenID uuid.UUID, position Position) error {
+func (g *Game) PlayToken(username string, tokenID uuid.UUID, position position.Position) error {
 	if g.activePlayer().Username != username {
 		return fmt.Errorf("it is not %q turn", username)
 	}
@@ -255,8 +272,6 @@ func (g *Game) PlayToken(username string, tokenID uuid.UUID, position Position) 
 	if err := g.board.PlayToken(position, tk); err != nil {
 		return fmt.Errorf("failed to play token: %w", err)
 	}
-
-	g.tokenBag.ConsumeToken(tokenID)
 
 	g.events <- struct{}{}
 	return nil
@@ -278,9 +293,9 @@ func (g *Game) Render(w io.Writer, username string) error {
 			return fmt.Errorf("player %q not found", username)
 		}
 
-		timer := time.After(time.Minute * 5)
+		timer := time.After(time.Second * 10)
 
-		fmt.Fprintf(w, "data: waiting\n\n")
+		fmt.Fprintf(w, "data: game_not_started\n\n")
 		flusher.Flush()
 
 		for playerToRenderFor == nil {

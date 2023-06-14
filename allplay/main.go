@@ -11,6 +11,7 @@ import (
 	"github.com/hibooboo2/ggames/allplay/pollen"
 	"github.com/hibooboo2/ggames/allplay/pollen/db"
 	"github.com/hibooboo2/ggames/allplay/rest"
+	"github.com/hibooboo2/glog"
 )
 
 func main() {
@@ -38,7 +39,10 @@ func main() {
 
 	a.Post("/tempID/", rest.TempID)
 
-	http.ListenAndServe(":8080", r)
+	err := http.ListenAndServe(":8080", r)
+	if err != nil {
+		glog.Fatal(err)
+	}
 }
 
 func homePage(w http.ResponseWriter, r *http.Request) {
@@ -79,6 +83,7 @@ func homePage(w http.ResponseWriter, r *http.Request) {
 	username := rest.GetUsername(r)
 	activeGames := db.GetActiveGames(username)
 	invitedGames := db.GetInvitedGames(username)
+	logger.AtLevelln(glog.LevelInfo, username, " Active Games: ", len(activeGames))
 	logger.Usersln(username, " Active Games: ", len(activeGames))
 	logger.Usersln(username, " Invited Games: ", len(invitedGames))
 
@@ -227,8 +232,7 @@ var playGameTmpl = template.Must(template.New("playgame").Parse(`
 		</head>
 		<body>
 		    <div id="mainbox">
-                <p>Current Game {{.GameID}}</p>
-				<p>Playing as {{.Username}}</p>
+				<p class="right">Playing as {{.Username}}</p>
 				<div id="gamebox">
 				</div>
 		    </div>

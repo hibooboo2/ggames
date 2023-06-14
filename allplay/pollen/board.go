@@ -7,61 +7,52 @@ import (
 	"io"
 	"math"
 	"os"
-	"strconv"
-	"strings"
 	"text/template"
+	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/hibooboo2/ggames/allplay/logger"
+	"github.com/hibooboo2/ggames/allplay/pollen/position"
+	"github.com/hibooboo2/ggames/allplay/pollen/token"
 )
 
 type Board struct {
-	cards  map[Position]*GardenCard
-	tokens map[Position]*PollinatorToken
+	cards   map[position.Position]*GardenCard
+	tokens  map[position.Position]*token.PollinatorToken
+	Scores  *GameScore
+	Players int
+	g       *Game
 }
 
-type Position struct {
-	X float64
-	Y float64
-}
-
-func (p *Position) Enc() string {
-	return fmt.Sprintf("%f:%f", p.X, p.Y)
-}
-
-func ParsePosition(s string) (*Position, error) {
-	splitVar := strings.Split(s, ":")
-	if len(splitVar) != 2 {
-		return nil, fmt.Errorf("invalid position: %q", s)
-	}
-	x, err := strconv.ParseFloat(splitVar[0], 64)
-	if err != nil {
-		return nil, fmt.Errorf("invalid float x: %q", splitVar[0])
-	}
-	y, err := strconv.ParseFloat(splitVar[1], 64)
-	if err != nil {
-		return nil, fmt.Errorf("invalid float y: %q", splitVar[1])
-	}
-
-	return &Position{
-		X: x,
-		Y: y,
-	}, nil
-}
-
-func NewBoard(token *PollinatorToken) *Board {
+func NewBoard(tk *token.PollinatorToken, g *Game) *Board {
+	players := len(g.players)
 	b := &Board{
-		cards:  make(map[Position]*GardenCard),
-		tokens: make(map[Position]*PollinatorToken),
+		cards:   make(map[position.Position]*GardenCard),
+		tokens:  make(map[position.Position]*token.PollinatorToken),
+		Players: players,
+		Scores:  NewGameScore(players),
+		g:       g,
 	}
-	b.PlaceStarterToken(token)
+	err := b.PlaceStarterToken(tk)
+	if err != nil {
+		panic(err)
+	}
 	return b
 }
 
-func (b *Board) PlaceStarterToken(token *PollinatorToken) {
-	b.tokens[Position{0, 0}] = token
+func (b *Board) PlaceStarterToken(token *token.PollinatorToken) error {
+	err := b.PlayToken(position.Position{0, 0}, token)
+	if err != nil {
+		return fmt.Errorf("failed to place starter token: %w", err)
+	}
+	return nil
 }
 
 func (b *Board) MustPlayToken() error {
+	if b.GameOver() {
+		return nil
+	}
+
 	if len(b.cards) == 0 {
 		return nil
 	}
@@ -72,67 +63,92 @@ func (b *Board) MustPlayToken() error {
 	return fmt.Errorf("must play tokens at the following positions: %v", positions)
 }
 
-func (b *Board) GetTokensMustPlay() []Position {
+func (b *Board) GetTokensMustPlay() []position.Position {
+	if b.GameOver() {
+		return nil
+	}
+
 	if len(b.cards) == 0 {
 		return nil
 	}
-	logger.AtLevel(logger.LPosition|logger.LBoard|logger.LToken, "Getting tokens must play")
-	tokensMustPlay := map[Position]struct{}{}
-	for position, _ := range b.cards {
-		nw := Position{position.X + 0.5, position.Y + 0.5}
-		sw := Position{position.X + 0.5, position.Y - 0.5}
-		ne := Position{position.X - 0.5, position.Y + 0.5}
-		se := Position{position.X - 0.5, position.Y - 0.5}
+	tokensMustPlay := map[position.Position]struct{}{}
+	for p, _ := range b.cards {
+		nw := position.Position{p.X + 0.5, p.Y + 0.5}
+		sw := position.Position{p.X + 0.5, p.Y - 0.5}
+		ne := position.Position{p.X - 0.5, p.Y + 0.5}
+		se := position.Position{p.X - 0.5, p.Y - 0.5}
 
-		logger.AtLevel(logger.LPosition, "Checking nw position for position", position)
+		logger.AtLevel(logger.LPosition, "Checking nw position for position", p)
 		if b.CanPlayToken(nw) == nil {
 			tokensMustPlay[nw] = struct{}{}
 		}
-		logger.AtLevel(logger.LPosition, "Checking sw position for position", position)
+		logger.AtLevel(logger.LPosition, "Checking sw position for position", p)
 		if b.CanPlayToken(sw) == nil {
 			tokensMustPlay[sw] = struct{}{}
 		}
-		logger.AtLevel(logger.LPosition, "Checking ne position for position", position)
+		logger.AtLevel(logger.LPosition, "Checking ne position for position", p)
 		if b.CanPlayToken(ne) == nil {
 			tokensMustPlay[ne] = struct{}{}
 		}
-		logger.AtLevel(logger.LPosition, "Checking se position for position", position)
+		logger.AtLevel(logger.LPosition, "Checking se position for position", p)
 		if b.CanPlayToken(se) == nil {
 			tokensMustPlay[se] = struct{}{}
 		}
 	}
-	var positions []Position
+	var positions []position.Position
 	for position := range tokensMustPlay {
 		positions = append(positions, position)
 	}
+	logger.AtLevel(logger.LPosition, "Found %v tokens to play", len(positions))
 	return positions
 }
 
-func (b *Board) PlayToken(position Position, token *PollinatorToken) error {
-	err := b.CanPlayToken(position)
+func (b *Board) PlayToken(p position.Position, token *token.PollinatorToken) error {
+	if token.IsUsed() {
+		return fmt.Errorf("token is already used: %v", token.ID)
+	}
+	_, ok := b.tokens[p]
+	if ok {
+		return fmt.Errorf("token already played at position %v", p)
+	}
+
+	logger.AtLevelf(logger.LBoard|logger.LToken|logger.LPosition, "Trying to place token at position %v id: %s", p, token.ID)
+	if token.Position != nil && p.X != 0 && p.Y != 0 {
+		logger.AtLevelf(logger.LBoard|logger.LToken|logger.LPosition, "Token already has a position %v cannot play at: %v id: %s", *token.Position, p, token.ID)
+		return fmt.Errorf("token already played at position %v", *token.Position)
+	}
+
+	err := b.CanPlayToken(p)
 	if err != nil {
 		return fmt.Errorf("cannot play token: %w", err)
 	}
-	b.tokens[position] = token
+	token.Position = &p
+	b.tokens[p] = token
+	token.Play()
 	return nil
 }
 
-func (b *Board) CanPlayToken(position Position) error {
-	_, fracX := math.Modf(math.Abs(position.X))
-	_, fracY := math.Modf(math.Abs(position.Y))
-	logger.AtLevel(logger.LPosition, "Checking if can play: ", position, fracX, fracY)
-	if fracX != 0 || fracY != 0 {
-		return fmt.Errorf("invalid position for a token: %v X and Y positions must be whole numbers", position)
+func (b *Board) CanPlayToken(p position.Position) error {
+	if _, present := b.tokens[p]; present {
+		return fmt.Errorf("token already exists at position %v", p)
 	}
 
-	if _, present := b.tokens[position]; present {
-		return fmt.Errorf("token already exists at position %v", position)
+	_, fracX := math.Modf(math.Abs(p.X))
+	_, fracY := math.Modf(math.Abs(p.Y))
+	logger.AtLevel(logger.LPosition, "Checking if can play: ", p, fracX, fracY)
+	if fracX != 0 || fracY != 0 {
+		return fmt.Errorf("invalid position for a token: %v X and Y positions must be whole numbers", p)
 	}
+
+	if p.X == 0 && p.Y == 0 {
+		return nil
+	}
+
 	//Add verification that position is a whole number
-	ne := Position{position.X + 0.5, position.Y + 0.5}
-	se := Position{position.X + 0.5, position.Y - 0.5}
-	nw := Position{position.X - 0.5, position.Y + 0.5}
-	sw := Position{position.X - 0.5, position.Y - 0.5}
+	ne := position.Position{p.X + 0.5, p.Y + 0.5}
+	se := position.Position{p.X + 0.5, p.Y - 0.5}
+	nw := position.Position{p.X - 0.5, p.Y + 0.5}
+	sw := position.Position{p.X - 0.5, p.Y - 0.5}
 	_, swPresent := b.cards[sw]
 	_, nwPresent := b.cards[nw]
 	_, nePresent := b.cards[ne]
@@ -143,37 +159,83 @@ func (b *Board) CanPlayToken(position Position) error {
 	case swPresent && sePresent:
 	case nwPresent && nePresent:
 	default:
-		return fmt.Errorf("there is not two adjacent cards at position %v", position)
+		return fmt.Errorf("there is not two adjacent cards at position %v", p)
 	}
 	return nil
 }
 
-func (b *Board) PlayCard(position Position, card *GardenCard) error {
-	err := b.CanPlayCard(position)
+func (b *Board) TokenIsSurrounded(tokenID uuid.UUID) bool {
+	var p *position.Position
+	for p2, token := range b.tokens {
+		if token.ID == tokenID {
+			if token.IsSurrounded() {
+				return true
+			}
+			p = &p2
+			break
+		}
+	}
+
+	if p == nil {
+		return false
+	}
+
+	logger.AtLevel(logger.LBoard|logger.LPosition, logger.LToken, "Checking if token is surrounded: ", p)
+
+	//Add verification that position is a whole number
+	ne := position.Position{p.X + 0.5, p.Y + 0.5}
+	se := position.Position{p.X + 0.5, p.Y - 0.5}
+	nw := position.Position{p.X - 0.5, p.Y + 0.5}
+	sw := position.Position{p.X - 0.5, p.Y - 0.5}
+	_, swPresent := b.cards[sw]
+	_, nwPresent := b.cards[nw]
+	_, nePresent := b.cards[ne]
+	_, sePresent := b.cards[se]
+	isSurrounded := swPresent && nwPresent && nePresent && sePresent
+
+	logger.AtLevelf(logger.LBoard|logger.LPosition|logger.LScore, "Token is directions sw: %v se %v nw %v ne %v", swPresent, sePresent, nwPresent, nePresent)
+	logger.AtLevelf(logger.LBoard|logger.LPosition|logger.LScore, "Token is surrounded: %v %v", *p, isSurrounded)
+	return isSurrounded
+}
+
+type MeepleType int
+
+const (
+	BeeMeeple MeepleType = iota
+	JunebugMeeple
+	ButterflyMeeple
+)
+
+func (b *Board) PlayCard(p position.Position, card *GardenCard) error {
+	err := b.CanPlayCard(p)
 	if err != nil {
 		return fmt.Errorf("cannot play card: %w", err)
 	}
-	b.cards[position] = card
+	b.cards[p] = card
+	b.UpdateScores()
 	return nil
 }
 
-func (b *Board) CanPlayCard(position Position) error {
-	_, fracX := math.Modf(math.Abs(position.X))
-	_, fracY := math.Modf(math.Abs(position.Y))
+func (b *Board) CanPlayCard(p position.Position) error {
+	if err := b.MustPlayToken(); err != nil {
+		return fmt.Errorf("you must play a token first: %w", err)
+	}
+	_, fracX := math.Modf(math.Abs(p.X))
+	_, fracY := math.Modf(math.Abs(p.Y))
 	if fracX != 0.5 || fracY != 0.5 {
-		return fmt.Errorf("invalid position for a card: %v X and Y positions must be numbers that end in .5", position)
+		return fmt.Errorf("invalid position for a card: %v X and Y positions must be numbers that end in .5", p)
 	}
 
-	_, present := b.cards[position]
+	_, present := b.cards[p]
 	if present {
-		return fmt.Errorf("card already exists at position %v", position)
+		return fmt.Errorf("card already exists at position %v", p)
 	}
 
 	//Add verification that position is a Half number
-	ne := Position{position.X + 0.5, position.Y + 0.5}
-	se := Position{position.X + 0.5, position.Y - 0.5}
-	nw := Position{position.X - 0.5, position.Y + 0.5}
-	sw := Position{position.X - 0.5, position.Y - 0.5}
+	ne := position.Position{p.X + 0.5, p.Y + 0.5}
+	se := position.Position{p.X + 0.5, p.Y - 0.5}
+	nw := position.Position{p.X - 0.5, p.Y + 0.5}
+	sw := position.Position{p.X - 0.5, p.Y - 0.5}
 	_, swPresent := b.tokens[sw]
 	_, nwPresent := b.tokens[nw]
 	_, nePresent := b.tokens[ne]
@@ -181,18 +243,22 @@ func (b *Board) CanPlayCard(position Position) error {
 	switch {
 	case swPresent, nwPresent, nePresent, sePresent:
 	default:
-		return fmt.Errorf("position %v does not have an adjacent token", position)
+		return fmt.Errorf("position %v does not have an adjacent token", p)
 	}
 	return nil
 }
 
-func (b *Board) CardLocationsPlayable() map[Position]struct{} {
-	positions := map[Position]struct{}{}
-	for position := range b.tokens {
-		nw := Position{position.X + 0.5, position.Y + 0.5}
-		sw := Position{position.X + 0.5, position.Y - 0.5}
-		ne := Position{position.X - 0.5, position.Y + 0.5}
-		se := Position{position.X - 0.5, position.Y - 0.5}
+func (b *Board) CardLocationsPlayable() map[position.Position]struct{} {
+	if b.GameOver() {
+		return nil
+	}
+
+	positions := map[position.Position]struct{}{}
+	for p := range b.tokens {
+		nw := position.Position{p.X + 0.5, p.Y + 0.5}
+		sw := position.Position{p.X + 0.5, p.Y - 0.5}
+		ne := position.Position{p.X - 0.5, p.Y + 0.5}
+		se := position.Position{p.X - 0.5, p.Y - 0.5}
 
 		if b.CanPlayCard(nw) == nil {
 			positions[nw] = struct{}{}
@@ -210,70 +276,95 @@ func (b *Board) CardLocationsPlayable() map[Position]struct{} {
 	return positions
 }
 
-var boardTmpl = func() *template.Template {
+func (b *Board) GameOver() bool {
+	return b.g.AllPlayersOutOfCards() || b.Scores.OutOfMeeples() || b.g.tokenBag.OutOfTokens()
+}
+
+var boardTmpl *template.Template
+var boardTmplLastUpdated time.Time
+
+func init() {
+	boardTmpl = parseBoardTmpl()
+}
+
+func parseBoardTmpl() *template.Template {
 	boardFile := "./pollen/static/views/board.html.tmpl"
-	_, err := os.Lstat(boardFile)
-	logger.Initf("Lstat %q: %v", boardFile, err)
+	info, err := os.Lstat(boardFile)
 	if os.IsNotExist(err) {
 		logger.Initf("%q not found", boardFile)
 		return nil
 	}
+
+	if boardTmplLastUpdated == info.ModTime() {
+		logger.Boardf("%q is up-to-date", boardFile)
+		return boardTmpl
+	}
+
+	boardTmplLastUpdated = info.ModTime()
+
+	logger.Initf("Lstat %q: %v", boardFile, err)
 	logger.Initf("Parsing %q", boardFile)
 	return template.Must(template.New("board").Funcs(template.FuncMap{
-		"tokenStyle": func(token *PollinatorToken, position Position) string {
+		"tokenStyle": func(t *token.PollinatorToken, p position.Position) string {
 			tokenStyle := fmt.Sprintf(`background-color: %s; left: %dpx; bottom: %dpx;`,
-				token.Type.Color(), int((position.X*2*25)+15), int((position.Y*2*25)+15))
+				t.Type.Color(), int((p.X*2*25)+15), int((p.Y*2*25)+15))
 			return tokenStyle
 		},
-		"playableTokenStyle": func(position Position, o interface{}) string {
+		"playableTokenStyle": func(p position.Position, o interface{}) string {
 			tokenStyle := fmt.Sprintf(`background-color: black; opacity: 0.5; left: %dpx; bottom: %dpx;`,
-				int((position.X*2*25)+15), int((position.Y*2*25)+15))
+				int((p.X*2*25)+15), int((p.Y*2*25)+15))
 			return tokenStyle
 		},
-		"cardStyle": func(card *GardenCard, position Position) string {
+		"cardStyle": func(card *GardenCard, p position.Position) string {
 			cardStyle := fmt.Sprintf(`background-color: %s; left: %dpx; bottom: %dpx;`,
-				card.Color, int(position.X*2*25), int(position.Y*2*25))
+				card.Color, int(p.X*2*25), int(p.Y*2*25))
 			return cardStyle
 		},
-		"playableStyle": func(position Position, o interface{}) string {
+		"playableStyle": func(p position.Position, o interface{}) string {
 			tokenStyle := fmt.Sprintf(`left: %dpx; bottom: %dpx;`,
-				int(position.X*2*25), int(position.Y*2*25))
+				int(p.X*2*25), int(p.Y*2*25))
 			return tokenStyle
 		},
 	}).ParseFiles(boardFile))
-}()
+}
 
 func (b *Board) Render(w io.Writer, p *Player, g *Game) error {
 	if boardTmpl == nil {
-		return fmt.Errorf("No board template found")
+		return fmt.Errorf("no board template found")
 	}
+
+	boardTmpl = parseBoardTmpl()
 
 	buff := bytes.NewBuffer(nil)
 	tokensMustPlay := b.GetTokensMustPlay()
 	err := boardTmpl.ExecuteTemplate(buff, "board", struct {
-		Cards                  map[Position]*GardenCard
-		Tokens                 map[Position]*PollinatorToken
-		PlayableCards          map[Position]struct{}
-		PlayableTokenPositions []Position
-		TokensCanPlay          []*PollinatorToken
+		Cards                  map[position.Position]*GardenCard
+		Tokens                 map[position.Position]*token.PollinatorToken
+		PlayableCards          map[position.Position]struct{}
+		PlayableTokenPositions []position.Position
+		TokensCanPlay          []*token.PollinatorToken
 		Debug                  bool
 		Player                 *Player
 		GameID                 string
 		Hand                   []GardenCard
 		IsPlayerTurn           bool
 		HintsOn                bool
+		Scores                 *GameScore
+		GameOver               bool
 	}{
-		b.cards,
-		b.tokens,
-		b.CardLocationsPlayable(),
-		tokensMustPlay,
-		g.tokenBag.GetTokens(len(tokensMustPlay)),
-		false,
-		p,
-		g.id.String(),
-		p.Hand,
-		g.activePlayer().Username == p.Username,
-		p.HintsOn,
+		Cards:                  b.cards,
+		Tokens:                 b.tokens,
+		PlayableCards:          b.CardLocationsPlayable(),
+		PlayableTokenPositions: tokensMustPlay,
+		TokensCanPlay:          g.tokenBag.GetTokens(len(tokensMustPlay)),
+		Debug:                  false,
+		Player:                 p,
+		GameID:                 g.id.String(),
+		Hand:                   p.Hand,
+		IsPlayerTurn:           g.activePlayer().Username == p.Username,
+		HintsOn:                p.HintsOn,
+		Scores:                 b.Scores,
+		GameOver:               b.GameOver(),
 	})
 	if err != nil {
 		return err

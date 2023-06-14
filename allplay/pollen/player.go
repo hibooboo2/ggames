@@ -34,6 +34,10 @@ func NewPlayer(username string, numPlayers int, color Color) *Player {
 	return p
 }
 
+func (p *Player) OutOfCards() bool {
+	return len(p.Hand) == 0
+}
+
 func (p *Player) CardNotPlayed() {
 	p.cardPlayed = false
 }
