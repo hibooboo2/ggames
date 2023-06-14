@@ -53,6 +53,7 @@ func homePage(w http.ResponseWriter, r *http.Request) {
 	<html>
 		<head>
 		    <script src="/static/js/functions.js"> </script>
+		    <script src="/static/js/hotkeys.js"> </script>
 			<meta charset="utf-8">
 		</head>
 		<body>
@@ -187,7 +188,7 @@ func renderGame(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
-	err = g.Render(fw, rest.GetUsername(r))
+	err = g.Render(r.Context().Done(), fw, rest.GetUsername(r))
 	if err != nil {
 		rest.RespondError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -234,6 +235,7 @@ var playGameTmpl = template.Must(template.New("playgame").Parse(`
 	<html>
         <head>
 			<script src="/static/js/functions.js"> </script>
+			<script src="/static/js/hotkeys.js"> </script>
 			<link rel="stylesheet" href="/static/css/main.css">
 			<meta charset="utf-8">
 		</head>

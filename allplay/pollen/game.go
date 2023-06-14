@@ -102,6 +102,8 @@ func (g *Game) Start() error {
 				select {
 				case p.Events <- struct{}{}:
 				case <-time.After(time.Millisecond * 50):
+				case <-g.done:
+					return
 				}
 			}
 		}
@@ -282,7 +284,7 @@ type FlusherWriter interface {
 	http.Flusher
 }
 
-func (g *Game) Render(w FlusherWriter, username string) error {
+func (g *Game) Render(done <-chan struct{}, w FlusherWriter, username string) error {
 	var playerToRenderFor *Player
 	for _, player := range g.players {
 		if player.Username == username {
@@ -312,6 +314,9 @@ func (g *Game) Render(w FlusherWriter, username string) error {
 						playerToRenderFor = player
 					}
 				}
+				if playerToRenderFor == nil {
+					return fmt.Errorf("player not a member of the game")
+				}
 			}
 		}
 	}
@@ -333,6 +338,8 @@ func (g *Game) Render(w FlusherWriter, username string) error {
 
 	for {
 		select {
+		case <-done:
+			return nil
 		case <-playerToRenderFor.Events:
 			err := g.board.Render(w, playerToRenderFor, g)
 			if err != nil {

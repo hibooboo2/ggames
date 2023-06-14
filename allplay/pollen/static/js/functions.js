@@ -63,6 +63,9 @@ function renderGame(gameID) {
         console.log("Rendering board")
         cardToPlay = ""
         document.getElementById("gamebox").innerHTML = atob(event.data)
+
+        document.removeEventListener('keypress', hotKeyToggle)
+        document.addEventListener('keypress', hotKeyToggle)
     }
 }
 

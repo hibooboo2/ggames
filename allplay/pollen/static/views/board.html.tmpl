@@ -21,6 +21,7 @@
         {{ $hints :=.HintsOn }}
         {{ $player :=.Player}}
         {{ $gameID :=.GameID}}
+        {{ $playableTokens := .PlayableTokenPositions }}
         <div class="board">
             <button class="right" id="hintsToggle" onclick='toggleHints("{{ $gameID }}")'>
                 Toggle Hints
@@ -43,6 +44,20 @@
                 {{ end }}
             </div>
             <div class="center">
+                {{if .IsPlayerTurn }}                        
+                    {{ if not .PlayableTokenPositions }}
+                        {{ range $position, $empty := .PlayableCards }}
+                        <div class="playableCard" style="{{ if not $hints }}opacity: 0;{{ end}}; left: {{ offset $position.X 0 }}px; bottom: {{ offset $position.Y 0 }}px" onclick='playCard("{{$gameID}}",getCardToPlay(),{{$position.X}},{{$position.Y}})'>
+                            <div>
+                                <img class="card" src="/static/images/Back_{{$player.Color}}.png"/>
+                                {{ if $debug }}
+                                    <div class="centered"> Position {{ $position }}</div>
+                                {{end}}
+                            </div>
+                        </div>
+                        {{ end }}
+                    {{ end }}
+                {{ end}}
                 {{range $position, $card := .Cards}}
                     <div class="card" style="left: {{ offset $position.X 0 }}px; bottom: {{ offset $position.Y 0 }}px">
                         <div>
@@ -65,26 +80,12 @@
                         {{ end }}
                     </div>
                 {{end}}
-                {{if .IsPlayerTurn }}
-                    {{ if .PlayableTokenPositions }}
-                        {{range $position := .PlayableTokenPositions}}
-                            <div class="token" style="background:black; opacity: 0.5; left: {{ offset $position.X 15 }}px; bottom: {{ offset $position.Y 15 }}px;" onclick='playToken("{{$gameID}}",{{$position.X}},{{$position.Y}})'>
-                            </div>
-                        {{end}}
-                    {{ else }}
-                        {{ range $position, $empty := .PlayableCards }}
-                        <div class="playableCard" style="{{ if not $hints }}opacity: 0;{{ end}} left: {{ offset $position.X 0 }}px; bottom: {{ offset $position.Y 0 }}px" onclick='playCard("{{$gameID}}",getCardToPlay(),{{$position.X}},{{$position.Y}})'>
-                            <div>
-                                <img class="card" src="/static/images/Back_{{$player.Color}}.png"/>
-                                {{ if $debug }}
-                                    <div class="centered"> Position {{ $position }}</div>
-                                {{end}}
-                            </div>
+                {{ if .IsPlayerTurn }}
+                    {{range $position := .PlayableTokenPositions}}
+                        <div class="token" style="background:black; opacity: 0.5; left: {{ offset $position.X 15 }}px; bottom: {{ offset $position.Y 15 }}px;" onclick='playToken("{{$gameID}}",{{$position.X}},{{$position.Y}})'>
                         </div>
-                        {{ end }}
-                    {{ end }}
-
-                {{ end}}
+                    {{end}}
+                {{ end }}
                 <div class="bottom hand">
                     <div class="tokenHolder">
                         {{ range $tokenNum, $token := .TokensCanPlay }}
@@ -100,7 +101,7 @@
                     </div>
                     <div class="cardHolder">
                         {{range $cardNum, $card := .Hand}}
-                            <div class="handCard" id="{{ $card.ID }}" onclick='setCardToPlay("{{ $card.ID }}")'>
+                            <div class="handCard" id="{{ $card.ID }}" {{ if not $playableTokens }} onclick='setCardToPlay("{{ $card.ID }}")' {{ end }}>
                                 <div>
                                     <img class="handCard" id="{{ $card.ID }}_img" src="/static/images/{{ $card.Name }}.png"/>
                                     {{ if $debug }}
