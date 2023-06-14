@@ -72,17 +72,15 @@
                             </div>
                         {{end}}
                     {{ else }}
-                        {{ if $hints }}
-                            {{ range $position, $empty := .PlayableCards }}
-                            <div class="playableCard" style="left: {{ offset $position.X 0 }}px; bottom: {{ offset $position.Y 0 }}px" onclick='playCard("{{$gameID}}",getCardToPlay(),{{$position.X}},{{$position.Y}})'>
-                                <div>
-                                    <img class="card" src="/static/images/Back_{{$player.Color}}.png"/>
-                                    {{ if $debug }}
-                                        <div class="centered"> Position {{ $position }}</div>
-                                    {{end}}
-                                </div>
+                        {{ range $position, $empty := .PlayableCards }}
+                        <div class="playableCard" style="{{ if not $hints }}opacity: 0;{{ end}} left: {{ offset $position.X 0 }}px; bottom: {{ offset $position.Y 0 }}px" onclick='playCard("{{$gameID}}",getCardToPlay(),{{$position.X}},{{$position.Y}})'>
+                            <div>
+                                <img class="card" src="/static/images/Back_{{$player.Color}}.png"/>
+                                {{ if $debug }}
+                                    <div class="centered"> Position {{ $position }}</div>
+                                {{end}}
                             </div>
-                            {{ end }}
+                        </div>
                         {{ end }}
                     {{ end }}
 

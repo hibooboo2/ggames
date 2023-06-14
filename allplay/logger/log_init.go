@@ -23,7 +23,7 @@ var (
 func init() {
 	SetPrefix("ALLPLAY")
 	SetLevel(glog.LevelDebug | LScore | LPlayer | LPosition | LToken | LGames | All)
-	glog.DefaultLogger = glog.NewLogger(os.Stdout, glog.DefaultLevel)
+	glog.DefaultLogger = glog.NewLogger(os.Stdout, glog.DefaultLevel|glog.LevelDebug)
 
 }
 
