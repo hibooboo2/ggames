@@ -54,8 +54,10 @@ function renderGame(gameID) {
     const source = new EventSource("/game/" + gameID + "/render/")
     source.onmessage = (event) => {
         switch (event.data) {
-            case "waiting":
+            case "game_not_started":
                 document.getElementById("gamebox").innerHTML = "<h2>Waiting on game to start and render...</h2>"
+            case "waiting":
+                document.getElementById("gamebox").innerHTML = "<h2>Waiting on game to render...</h2>"
                 return
         }
         console.log("Rendering board")

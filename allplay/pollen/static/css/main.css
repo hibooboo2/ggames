@@ -22,6 +22,13 @@ p {
     top: 50%;
 }
 
+.scores {
+    position: fixed;
+    bottom: 0px;
+    right: 0px;
+    font-size: 11px;
+}
+
 .bottom {
     bottom: 0px;
 }
@@ -50,6 +57,16 @@ p {
     width: 75px;
     height: 75px;
     opacity: 0.75;
+}
+
+.handCard:hover {
+    opacity: 1;
+    transform: scale(1.25) translateY(-10%);
+}
+
+.handToken:hover {
+    opacity: 1;
+    transform: scale(1.25) translateX(10%);
 }
 
 .handCardSelected {
