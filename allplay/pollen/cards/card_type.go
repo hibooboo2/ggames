@@ -1,4 +1,4 @@
-package pollen
+package cards
 
 type CardType int
 

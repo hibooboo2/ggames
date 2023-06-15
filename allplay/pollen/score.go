@@ -3,6 +3,8 @@ package pollen
 import (
 	"github.com/gofrs/uuid"
 	"github.com/hibooboo2/ggames/allplay/logger"
+	"github.com/hibooboo2/ggames/allplay/pollen/cards"
+	"github.com/hibooboo2/ggames/allplay/pollen/colors"
 	"github.com/hibooboo2/ggames/allplay/pollen/position"
 	"github.com/hibooboo2/ggames/allplay/pollen/token"
 )
@@ -11,11 +13,11 @@ type GameScore struct {
 	BeeMeeplesLeft       int
 	JunebugMeeplesLeft   int
 	ButterflyMeeplesLeft int
-	Scores               map[Color]*PlayerScore
+	Scores               map[colors.Color]*PlayerScore
 }
 
 type PlayerScore struct {
-	Color            Color
+	c                colors.Color
 	BeeMeeples       int
 	JunebugMeeples   int
 	ButterflyMeeples int
@@ -26,11 +28,11 @@ func NewGameScore(players int) *GameScore {
 		BeeMeeplesLeft:       10,
 		JunebugMeeplesLeft:   10,
 		ButterflyMeeplesLeft: 10,
-		Scores: map[Color]*PlayerScore{
-			Purple: {Color: Purple},
-			Green:  {Color: Green},
-			Pink:   {Color: Pink},
-			Orange: {Color: Orange},
+		Scores: map[colors.Color]*PlayerScore{
+			colors.Purple: {c: colors.Purple},
+			colors.Green:  {c: colors.Green},
+			colors.Pink:   {c: colors.Pink},
+			colors.Orange: {c: colors.Orange},
 		},
 	}
 
@@ -82,13 +84,12 @@ func (b *Board) UpdateScores() {
 			}
 
 			token.SetSurrounded(true)
-			logger.AtLevelf(logger.LBoard|logger.LScore, "Score is Green: %v", b.Scores.Scores[Green])
 			logger.AtLevelf(logger.LBoard|logger.LToken|logger.LPosition|logger.LScore, "Token %v is surrounded position %v", token.ID, position)
 		}
 	}
 }
 
-func (b *Board) ScoreToken(tokenID uuid.UUID) (Color, Color, Color) {
+func (b *Board) ScoreToken(tokenID uuid.UUID) (colors.Color, colors.Color, colors.Color) {
 	var p *position.Position
 	var tokenType token.TokenType
 	for p2, token := range b.tokens {
@@ -118,59 +119,59 @@ func (b *Board) ScoreToken(tokenID uuid.UUID) (Color, Color, Color) {
 		return 0, 0, 0
 	}
 
-	return scoreForColors([]*GardenCard{swCard, nwCard, neCard, seCard}, tokenType)
+	return scoreForColors([]*cards.GardenCard{swCard, nwCard, neCard, seCard}, tokenType)
 }
 
-func scoreForColors(cards []*GardenCard, ct token.TokenType) (Color, Color, Color) {
-	scores := make(map[MeepleType]map[Color]int)
-	scores[BeeMeeple] = make(map[Color]int)
-	scores[JunebugMeeple] = make(map[Color]int)
-	scores[ButterflyMeeple] = make(map[Color]int)
+func scoreForColors(cardsToScore []*cards.GardenCard, ct token.TokenType) (colors.Color, colors.Color, colors.Color) {
+	scores := make(map[MeepleType]map[colors.Color]int)
+	scores[BeeMeeple] = make(map[colors.Color]int)
+	scores[JunebugMeeple] = make(map[colors.Color]int)
+	scores[ButterflyMeeple] = make(map[colors.Color]int)
 
-	for _, card := range cards {
+	for _, card := range cardsToScore {
 		switch ct {
 		case token.BeeToken:
-			if card.Type == Bee || card.Type == Wild {
-				scores[BeeMeeple][card.Color] += card.Value
+			if card.Type == cards.Bee || card.Type == cards.Wild {
+				scores[BeeMeeple][card.C] += card.Value
 			}
 		case token.JunebugToken:
-			if card.Type == Junebug || card.Type == Wild {
-				scores[JunebugMeeple][card.Color] += card.Value
+			if card.Type == cards.Junebug || card.Type == cards.Wild {
+				scores[JunebugMeeple][card.C] += card.Value
 			}
 		case token.ButterflyToken:
-			if card.Type == Butterfly || card.Type == Wild {
-				scores[ButterflyMeeple][card.Color] += card.Value
+			if card.Type == cards.Butterfly || card.Type == cards.Wild {
+				scores[ButterflyMeeple][card.C] += card.Value
 			}
 		case token.BeeJunebugToken:
-			if card.Type == Bee || card.Type == Wild {
-				scores[BeeMeeple][card.Color] += card.Value
+			if card.Type == cards.Bee || card.Type == cards.Wild {
+				scores[BeeMeeple][card.C] += card.Value
 			}
-			if card.Type == Junebug || card.Type == Wild {
-				scores[JunebugMeeple][card.Color] += card.Value
+			if card.Type == cards.Junebug || card.Type == cards.Wild {
+				scores[JunebugMeeple][card.C] += card.Value
 			}
 		case token.BeeButterflyToken:
-			if card.Type == Bee || card.Type == Wild {
-				scores[BeeMeeple][card.Color] += card.Value
+			if card.Type == cards.Bee || card.Type == cards.Wild {
+				scores[BeeMeeple][card.C] += card.Value
 			}
-			if card.Type == Butterfly || card.Type == Wild {
-				scores[ButterflyMeeple][card.Color] += card.Value
+			if card.Type == cards.Butterfly || card.Type == cards.Wild {
+				scores[ButterflyMeeple][card.C] += card.Value
 			}
 		case token.JunebugButterFlyToken:
-			if card.Type == Junebug || card.Type == Wild {
-				scores[JunebugMeeple][card.Color] += card.Value
+			if card.Type == cards.Junebug || card.Type == cards.Wild {
+				scores[JunebugMeeple][card.C] += card.Value
 			}
-			if card.Type == Butterfly || card.Type == Wild {
-				scores[ButterflyMeeple][card.Color] += card.Value
+			if card.Type == cards.Butterfly || card.Type == cards.Wild {
+				scores[ButterflyMeeple][card.C] += card.Value
 			}
 		case token.BeeJunebugButterFlyToken:
-			if card.Type == Bee || card.Type == Wild {
-				scores[BeeMeeple][card.Color] += card.Value
+			if card.Type == cards.Bee || card.Type == cards.Wild {
+				scores[BeeMeeple][card.C] += card.Value
 			}
-			if card.Type == Junebug || card.Type == Wild {
-				scores[JunebugMeeple][card.Color] += card.Value
+			if card.Type == cards.Junebug || card.Type == cards.Wild {
+				scores[JunebugMeeple][card.C] += card.Value
 			}
-			if card.Type == Butterfly || card.Type == Wild {
-				scores[ButterflyMeeple][card.Color] += card.Value
+			if card.Type == cards.Butterfly || card.Type == cards.Wild {
+				scores[ButterflyMeeple][card.C] += card.Value
 			}
 		}
 	}
@@ -178,8 +179,8 @@ func scoreForColors(cards []*GardenCard, ct token.TokenType) (Color, Color, Colo
 	return getMaxColor(scores[BeeMeeple]), getMaxColor(scores[JunebugMeeple]), getMaxColor(scores[ButterflyMeeple])
 }
 
-func getMaxColor(colorScores map[Color]int) Color {
-	var maxColor Color
+func getMaxColor(colorScores map[colors.Color]int) colors.Color {
+	var maxColor colors.Color
 	var maxScore int
 	for color, score := range colorScores {
 		switch {

@@ -1,4 +1,4 @@
-package pollen
+package colors
 
 type Color int
 

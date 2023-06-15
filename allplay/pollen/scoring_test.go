@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/gofrs/uuid"
+	"github.com/hibooboo2/ggames/allplay/pollen/cards"
 	"github.com/hibooboo2/ggames/allplay/pollen/position"
 	"github.com/hibooboo2/ggames/allplay/pollen/token"
 	"github.com/stretchr/testify/require"
@@ -22,8 +23,8 @@ func TestScoring(t *testing.T) {
 
 	require.False(t, b.CanPlayToken(position.Position{-1, 0}) == nil)
 
-	dk1 := NewGardenDeck(2, 0)
-	dk2 := NewGardenDeck(2, 1)
+	dk1 := cards.NewGardenDeck(2, 0)
+	dk2 := cards.NewGardenDeck(2, 1)
 
 	require.NoError(t, b.PlayCard(position.Position{-0.5, 0.5}, dk1.Draw()))
 	require.NoError(t, b.PlayCard(position.Position{0.5, -0.5}, dk2.Draw()))

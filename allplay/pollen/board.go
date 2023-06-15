@@ -10,12 +10,13 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/hibooboo2/ggames/allplay/logger"
+	"github.com/hibooboo2/ggames/allplay/pollen/cards"
 	"github.com/hibooboo2/ggames/allplay/pollen/position"
 	"github.com/hibooboo2/ggames/allplay/pollen/token"
 )
 
 type Board struct {
-	cards   map[position.Position]*GardenCard
+	cards   map[position.Position]*cards.GardenCard
 	tokens  map[position.Position]*token.PollinatorToken
 	Scores  *GameScore
 	Players int
@@ -25,7 +26,7 @@ type Board struct {
 func NewBoard(tk *token.PollinatorToken, g *Game) *Board {
 	players := len(g.Players)
 	b := &Board{
-		cards:   make(map[position.Position]*GardenCard),
+		cards:   make(map[position.Position]*cards.GardenCard),
 		tokens:  make(map[position.Position]*token.PollinatorToken),
 		Players: players,
 		Scores:  NewGameScore(players),
@@ -204,7 +205,7 @@ const (
 	ButterflyMeeple
 )
 
-func (b *Board) PlayCard(p position.Position, card *GardenCard) error {
+func (b *Board) PlayCard(p position.Position, card *cards.GardenCard) error {
 	err := b.CanPlayCard(p)
 	if err != nil {
 		return fmt.Errorf("cannot play card: %w", err)
@@ -293,7 +294,7 @@ func (b *Board) Render(w io.Writer, p *Player, g *Game) error {
 	buff := bytes.NewBuffer(nil)
 	tokensMustPlay := b.GetTokensMustPlay()
 	err = boardTmpl.ExecuteTemplate(buff, "board", struct {
-		Cards                  map[position.Position]*GardenCard
+		Cards                  map[position.Position]*cards.GardenCard
 		Tokens                 map[position.Position]*token.PollinatorToken
 		PlayableCards          map[position.Position]struct{}
 		PlayableTokenPositions []position.Position
@@ -301,7 +302,7 @@ func (b *Board) Render(w io.Writer, p *Player, g *Game) error {
 		Debug                  bool
 		Player                 *Player
 		GameID                 string
-		Hand                   []GardenCard
+		Hand                   []cards.GardenCard
 		IsPlayerTurn           bool
 		HintsOn                bool
 		Scores                 *GameScore

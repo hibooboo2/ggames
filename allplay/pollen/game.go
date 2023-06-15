@@ -12,6 +12,8 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/hibooboo2/ggames/allplay/logger"
+	"github.com/hibooboo2/ggames/allplay/pollen/cards"
+	"github.com/hibooboo2/ggames/allplay/pollen/colors"
 	"github.com/hibooboo2/ggames/allplay/pollen/position"
 	"github.com/hibooboo2/ggames/allplay/pollen/token"
 )
@@ -80,7 +82,7 @@ func (g *Game) Start() error {
 	}
 	sort.Strings(usernames)
 
-	c := Purple
+	c := colors.Purple
 	for _, user := range usernames {
 		g.Players = append(g.Players, NewPlayer(user, len(g.PlayerUsernames), c))
 		c = 1 << c
@@ -98,7 +100,7 @@ func (g *Game) Start() error {
 				p := p
 				go func() {
 					select {
-					case p.Events <- struct{}{}:
+					case p.events <- struct{}{}:
 					case <-time.After(time.Millisecond * 100):
 					case <-g.done:
 						return
@@ -167,7 +169,7 @@ func (g *Game) GetID() uuid.UUID {
 	return g.id
 }
 
-func (g *Game) GetHand(username string) []GardenCard {
+func (g *Game) GetHand(username string) []cards.GardenCard {
 	logger.Gamesln("Getting hand for", username)
 	for _, player := range g.Players {
 		if player.Username == username {
@@ -331,7 +333,7 @@ func (g *Game) Render(c context.Context, w FlusherWriter, username string) error
 		case <-c.Done():
 			logger.Gamesf("Player %q just disconnected", playerToRenderFor.Username)
 			return nil
-		case <-playerToRenderFor.Events:
+		case <-playerToRenderFor.events:
 			err := g.Board.Render(w, playerToRenderFor, g)
 			if err != nil {
 				logger.Gamesf("Failed to render for %s: %v", playerToRenderFor.Username, err)

@@ -6,6 +6,8 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/hibooboo2/ggames/allplay/logger"
+	"github.com/hibooboo2/ggames/allplay/pollen/cards"
+	"github.com/hibooboo2/ggames/allplay/pollen/colors"
 )
 
 var (
@@ -14,39 +16,38 @@ var (
 )
 
 type Player struct {
-	Color      Color
+	Color      colors.Color
 	Username   string
-	Events     chan struct{}
-	Hand       []GardenCard
-	Deck       *GardenDeck
+	events     chan struct{}
+	Hand       []cards.GardenCard
+	Deck       *cards.GardenDeck
 	HintsOn    bool
 	cardPlayed bool
-	Connected  bool
+	connected  bool
 	l          sync.Mutex
 }
 
-func NewPlayer(username string, numPlayers int, color Color) *Player {
+func NewPlayer(username string, numPlayers int, color colors.Color) *Player {
 	p := &Player{
 		Color:    color,
 		Username: username,
-		Events:   make(chan struct{}, 10),
-		Deck:     NewGardenDeck(numPlayers, color),
+		events:   make(chan struct{}, 10),
+		Deck:     cards.NewGardenDeck(numPlayers, color),
 	}
-	p.Hand = p.Deck.cards[:5]
-	p.Deck.cards = p.Deck.cards[5:]
+	p.Hand = p.Deck.DrawHand()
 	return p
 }
 
 func (p *Player) ToggleConnection() {
 	p.l.Lock()
-	p.Connected = !p.Connected
-	logger.Usersf("Player %s is now connected: %v", p.Username, p.Connected)
+	p.connected = !p.connected
+	logger.Usersf("Player %s is now connected: %v", p.Username, p.connected)
 	p.l.Unlock()
 }
 
 func (p *Player) IsConnected() bool {
 	p.l.Lock()
-	c := p.Connected
+	c := p.connected
 	p.l.Unlock()
 	return c
 }
@@ -63,7 +64,7 @@ func (p *Player) CardPlayed() bool {
 	return p.cardPlayed
 }
 
-func (p *Player) PlayCard(card uuid.UUID) (*GardenCard, error) {
+func (p *Player) PlayCard(card uuid.UUID) (*cards.GardenCard, error) {
 	if p.cardPlayed {
 		return nil, ErrCardAlreadyPlayedThisTurn
 	}
@@ -72,7 +73,7 @@ func (p *Player) PlayCard(card uuid.UUID) (*GardenCard, error) {
 	}
 	for i, c := range p.Hand {
 		if c.ID == card {
-			logger.Player("Valid move ", c.Color, c.Type, c.Value)
+			logger.Player("Valid move ", c.C, c.Type, c.Value)
 			p.Hand = append(p.Hand[:i], p.Hand[i+1:]...)
 			drawnCard := p.Deck.Draw()
 			if drawnCard != nil {
@@ -84,7 +85,7 @@ func (p *Player) PlayCard(card uuid.UUID) (*GardenCard, error) {
 	}
 	return nil, errors.New("card not found")
 }
-func (p *Player) GetCard(card uuid.UUID) (*GardenCard, error) {
+func (p *Player) GetCard(card uuid.UUID) (*cards.GardenCard, error) {
 	if len(p.Hand) == 0 {
 		return nil, ErrNoCard
 	}

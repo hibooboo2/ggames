@@ -3,11 +3,12 @@ package pollen
 import (
 	"testing"
 
+	"github.com/hibooboo2/ggames/allplay/pollen/colors"
 	"github.com/stretchr/testify/require"
 )
 
 func TestPlayerEmptyDeckAndHand(t *testing.T) {
-	p := NewPlayer("JAMES", 2, Green)
+	p := NewPlayer("JAMES", 2, colors.Green)
 
 	card := p.Hand[0]
 	for len(p.Hand) > 0 {
