@@ -27,7 +27,7 @@ function startGame(gameID) {
 
 function createJoinGameLink(gameID) {
     let req = new XMLHttpRequest()
-    req.open("POST", "/tempID/")
+    req.open("POST", "/tempID/?uname=" + document.getElementById("username").value + "&psw=" + document.getElementById("password").value)
     req.send()
     req.onreadystatechange = (e) => {
         if (req.readyState != 4) {

@@ -9,5 +9,4 @@ var (
 	games    = map[uuid.UUID]*pollen.Game{}
 	users    = map[string][32]byte{}
 	sessions = map[string]*UserSession{}
-	tempIDs  = map[string]struct{}{}
 )

@@ -3,9 +3,10 @@ package db
 import (
 	"crypto/sha256"
 	"crypto/subtle"
+	"encoding/base64"
 	"errors"
-	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -29,8 +30,7 @@ func (s *UserSession) Cookie() *http.Cookie {
 }
 
 func init() {
-	RegisterUser("jj@jhrb.us", "jj", "jj")
-	RegisterUser("ff@jhrb.us", "ff", "ff")
+	RegisterUser("jj@jhrb.us", "James", "j")
 }
 
 func (s *UserSession) MustReauthenticate() bool {
@@ -47,11 +47,6 @@ func (s *UserSession) MustReauthenticate() bool {
 func RegisterUser(email, username, password string) error {
 	if _, ok := users[username]; ok {
 		return errors.New("user already exists")
-	}
-
-	_, isTemp := tempIDs[username]
-	if isTemp {
-		delete(tempIDs, username)
 	}
 
 	users[username] = sha256.Sum256([]byte(password))
@@ -98,35 +93,25 @@ func Login(username string, password string, timeout time.Duration, newSession b
 	return sessions[sessionID], nil
 }
 
-func GetTempID() string {
-	tempID := uuid.Must(uuid.NewV4()).String()
-	tempIDs[tempID] = struct{}{}
+func GetTempID(username string, password string) string {
+	RegisterUser("temp@dispostable.com", username, password)
+	tempID := base64.RawURLEncoding.EncodeToString([]byte(username + ":" + password))
 	return tempID
-}
-
-func IsTempID(tempID string) bool {
-	_, ok := tempIDs[tempID]
-	return ok
-}
-
-func InvalidateTempID(tempID string) {
-	delete(tempIDs, tempID)
 }
 
 func tmpLogin(r *http.Request) (*UserSession, bool) {
 	tempID := r.FormValue("anonymous")
-	if tempID != "" && IsTempID(tempID) {
-		InvalidateTempID(tempID)
-		logger.Authln("No active session and tempID found, creating temporary session")
-		tmpID := uuid.Must(uuid.NewV4())
-		err := RegisterUser(fmt.Sprintf("%s@jhrb.us", tmpID.String()), tmpID.String(), tmpID.String())
+	if tempID != "" {
+		logger.Authln("Temp login attempting")
+		tempID, err := base64.RawURLEncoding.DecodeString(tempID)
 		if err != nil {
-			logger.Authln("FAiled to create temporary session: ", err)
 			return nil, false
 		}
-		us, err := Login(tmpID.String(), tmpID.String(), time.Hour*24*7, true)
+		usplit := strings.Split(string(tempID), ":")
+		username, password := usplit[0], usplit[1]
+		us, err := Login(username, password, time.Hour*24*7, true)
 		if err != nil {
-			logger.Authln("Failed to login temporary session: ", err)
+			logger.Authln("Failed to login temporary session", err)
 			return nil, false
 		}
 		return us, true

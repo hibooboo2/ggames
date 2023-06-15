@@ -3,7 +3,7 @@ p {
 }
 
 .right {
-    right: 0px;
+    right: 2em;
     position: fixed;
 }
 

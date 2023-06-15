@@ -38,7 +38,7 @@ func LoadTemplate(filename string, args ...interface{}) (*template.Template, err
 
 	logger.Initf("Lstat %q: %v", filename, err)
 	logger.Initf("Parsing %q", filename)
-	t, err = template.New("").Funcs(funcs).ParseFiles(filename)
+	t, err = template.New("").Funcs(funcs).ParseFiles(filename, "./pollen/static/views/common.html.tmpl")
 	if err != nil {
 		return nil, err
 	}

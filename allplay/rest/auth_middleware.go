@@ -217,5 +217,5 @@ func Register(w http.ResponseWriter, r *http.Request) {
 }
 
 func TempID(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte(db.GetTempID()))
+	w.Write([]byte(db.GetTempID(r.FormValue("uname"), r.FormValue("psw"))))
 }

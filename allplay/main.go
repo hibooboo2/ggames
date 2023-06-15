@@ -130,7 +130,11 @@ func newgame(w http.ResponseWriter, r *http.Request) {
 	newGameTmpl := template.Must(template.New("newgame").Parse(`
 		<div>
 		    <h1>Current Game {{.GameID}}</h1>
+			<div>
+			<input type="text" id="username" placeholder="NewUsername"/>
+			<input type="text" id="password" placeholder="NewPassword"/>
 			<button onclick='createJoinGameLink({{ .GameID }})'>Copy Join Game Link</button>
+			</div>
 			<button onclick='startGame({{ .GameID }})'>Start Game</button>
 			<input type="text" id="username" placeholder="User to invite"/>
 			<button onclick='inviteUser({{ .GameID }})'>Invite User</button>
@@ -230,15 +234,10 @@ func playToken(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 }
 
-var playGameTmpl = template.Must(template.New("playgame").Parse(`
+var playGameTmpl = template.Must(template.Must(template.New("playgame").ParseFiles("./pollen/static/views/common.html.tmpl")).Parse(`
 	<!DOCTYPE html>
 	<html>
-        <head>
-			<script src="/static/js/functions.js"> </script>
-			<script src="/static/js/hotkeys.js"> </script>
-			<link rel="stylesheet" href="/static/css/main.css">
-			<meta charset="utf-8">
-		</head>
+		{{template "header"}}
 		<body>
 		    <div id="mainbox">
 				<p class="right">Playing as {{.Username}}</p>
