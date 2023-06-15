@@ -57,6 +57,7 @@ p {
     height: 75px;
     opacity: 0.75;
     cursor: move;
+    transition: 0.3s;
 }
 
 .handCard:hover {

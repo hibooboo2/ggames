@@ -1,6 +1,7 @@
 package pollen
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -99,12 +100,15 @@ func (g *Game) Start() error {
 	go func() {
 		for range g.events {
 			for _, p := range g.players {
-				select {
-				case p.Events <- struct{}{}:
-				case <-time.After(time.Millisecond * 50):
-				case <-g.done:
-					return
-				}
+				p := p
+				go func() {
+					select {
+					case p.Events <- struct{}{}:
+					case <-time.After(time.Millisecond * 100):
+					case <-g.done:
+						return
+					}
+				}()
 			}
 		}
 	}()
@@ -284,7 +288,7 @@ type FlusherWriter interface {
 	http.Flusher
 }
 
-func (g *Game) Render(done <-chan struct{}, w FlusherWriter, username string) error {
+func (g *Game) Render(c context.Context, w FlusherWriter, username string) error {
 	var playerToRenderFor *Player
 	for _, player := range g.players {
 		if player.Username == username {
@@ -306,6 +310,9 @@ func (g *Game) Render(done <-chan struct{}, w FlusherWriter, username string) er
 
 		for playerToRenderFor == nil {
 			select {
+			case <-c.Done():
+				logger.Gamesf("User %q disconnected", username)
+				return nil
 			case <-timer:
 				return fmt.Errorf("player not found or game not started")
 			case <-g.readyChan:
@@ -336,9 +343,13 @@ func (g *Game) Render(done <-chan struct{}, w FlusherWriter, username string) er
 
 	w.Flush()
 
+	playerToRenderFor.ToggleConnection()
+	defer playerToRenderFor.ToggleConnection()
+	g.events <- struct{}{}
 	for {
 		select {
-		case <-done:
+		case <-c.Done():
+			logger.Gamesf("Player %q just disconnected", playerToRenderFor.Username)
 			return nil
 		case <-playerToRenderFor.Events:
 			err := g.board.Render(w, playerToRenderFor, g)

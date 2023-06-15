@@ -188,7 +188,7 @@ func renderGame(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
-	err = g.Render(r.Context().Done(), fw, rest.GetUsername(r))
+	err = g.Render(r.Context(), fw, rest.GetUsername(r))
 	if err != nil {
 		rest.RespondError(w, http.StatusInternalServerError, err.Error())
 		return

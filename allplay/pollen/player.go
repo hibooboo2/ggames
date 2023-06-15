@@ -2,6 +2,7 @@ package pollen
 
 import (
 	"errors"
+	"sync"
 
 	"github.com/gofrs/uuid"
 	"github.com/hibooboo2/ggames/allplay/logger"
@@ -20,6 +21,8 @@ type Player struct {
 	Deck       *GardenDeck
 	HintsOn    bool
 	cardPlayed bool
+	Connected  bool
+	l          sync.Mutex
 }
 
 func NewPlayer(username string, numPlayers int, color Color) *Player {
@@ -32,6 +35,20 @@ func NewPlayer(username string, numPlayers int, color Color) *Player {
 	p.Hand = p.Deck.cards[:5]
 	p.Deck.cards = p.Deck.cards[5:]
 	return p
+}
+
+func (p *Player) ToggleConnection() {
+	p.l.Lock()
+	p.Connected = !p.Connected
+	logger.Usersf("Player %s is now connected: %v", p.Username, p.Connected)
+	p.l.Unlock()
+}
+
+func (p *Player) IsConnected() bool {
+	p.l.Lock()
+	c := p.Connected
+	p.l.Unlock()
+	return c
 }
 
 func (p *Player) OutOfCards() bool {

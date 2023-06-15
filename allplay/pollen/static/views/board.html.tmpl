@@ -24,7 +24,11 @@
         {{ $playableTokens := .PlayableTokenPositions }}
         <div class="board">
             <button class="right" id="hintsToggle" onclick='toggleHints("{{ $gameID }}")'>
-                Toggle Hints
+                {{ if .HintsOn }}
+                    Turn hints on
+                {{ else }}
+                    Turn hints off
+                {{ end }}
             </button>
             {{ if .Scores }}
                 <div class="scores">
@@ -44,7 +48,7 @@
                 {{ end }}
                 {{ range $player := .Players }}
                     <p>
-                    {{ $player.Username }} {{ $player.Color }} is {{ if $player.Connected }} connected {{ else }} not connected {{ end }}
+                    {{ $player.Username }} {{ $player.Color }} is {{ if $player.IsConnected }} connected {{ else }} not connected {{ end }}
                     </p>
                 {{ end }}
             </div>
@@ -106,9 +110,9 @@
                     </div>
                     <div class="cardHolder">
                         {{range $cardNum, $card := .Hand}}
-                            <div class="handCard" draggable="true" id="{{ $card.ID }}" {{ if not $playableTokens }} onclick='setCardToPlay("{{ $card.ID }}")' {{ end }}>
+                            <div class="handCard" id="{{ $card.ID }}" onclick='setCardToPlay("{{ $card.ID }}")'>
                                 <div>
-                                    <img class="handCard" draggable="true" id="{{ $card.ID }}_img" src="/static/images/{{ $card.Name }}.png"/>
+                                    <img class="handCard" id="{{ $card.ID }}_img" src="/static/images/{{ $card.Name }}.png"/>
                                     {{ if $debug }}
                                         <div class="centered"> Position {{ $cardNum }}</div>
                                     {{end}}
