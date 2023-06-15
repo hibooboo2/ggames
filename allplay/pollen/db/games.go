@@ -8,8 +8,6 @@ import (
 	"github.com/hibooboo2/ggames/allplay/pollen"
 )
 
-var games = map[uuid.UUID]*pollen.Game{}
-
 func NewGame(id uuid.UUID, username string) error {
 	if _, ok := games[id]; ok {
 		return errors.New("game already exists")

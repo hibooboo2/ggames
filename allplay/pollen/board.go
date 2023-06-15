@@ -23,7 +23,7 @@ type Board struct {
 }
 
 func NewBoard(tk *token.PollinatorToken, g *Game) *Board {
-	players := len(g.players)
+	players := len(g.Players)
 	b := &Board{
 		cards:   make(map[position.Position]*GardenCard),
 		tokens:  make(map[position.Position]*token.PollinatorToken),
@@ -275,7 +275,7 @@ func (b *Board) CardLocationsPlayable() map[position.Position]struct{} {
 }
 
 func (b *Board) GameOver() bool {
-	return b.g.AllPlayersOutOfCards() || b.Scores.OutOfMeeples() || b.g.tokenBag.OutOfTokens()
+	return b.g.AllPlayersOutOfCards() || b.Scores.OutOfMeeples() || b.g.TokenBag.OutOfTokens()
 }
 
 var boardFuncs = template.FuncMap{
@@ -312,7 +312,7 @@ func (b *Board) Render(w io.Writer, p *Player, g *Game) error {
 		Tokens:                 b.tokens,
 		PlayableCards:          b.CardLocationsPlayable(),
 		PlayableTokenPositions: tokensMustPlay,
-		TokensCanPlay:          g.tokenBag.GetTokens(len(tokensMustPlay)),
+		TokensCanPlay:          g.TokenBag.GetTokens(len(tokensMustPlay)),
 		Debug:                  false,
 		Player:                 p,
 		GameID:                 g.id.String(),
@@ -321,7 +321,7 @@ func (b *Board) Render(w io.Writer, p *Player, g *Game) error {
 		HintsOn:                p.HintsOn,
 		Scores:                 b.Scores,
 		GameOver:               b.GameOver(),
-		Players:                g.players,
+		Players:                g.Players,
 	})
 	if err != nil {
 		return err

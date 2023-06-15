@@ -22,32 +22,31 @@ func init() {
 
 type Game struct {
 	id                 uuid.UUID
-	name               string
-	owner              string
-	players            []*Player
-	invitedUsers       map[string]struct{}
-	playerUsernames    map[string]struct{}
-	activePlayerCursor int
-	tokenBag           *token.TokenBag
-	board              *Board
+	Name               string
+	Owner              string
+	Players            []*Player
+	InvitedUsers       map[string]struct{}
+	PlayerUsernames    map[string]struct{}
+	ActivePlayerCursor int
+	TokenBag           *token.TokenBag
+	Board              *Board
 	events             chan struct{}
 	done               chan struct{}
 	started            bool
 	readyChan          chan struct{}
-	AutoToken          bool
 }
 
 func NewGame(id uuid.UUID, username string, gameName string) *Game {
 	g := &Game{
 		id:              id,
-		owner:           username,
-		name:            gameName,
-		tokenBag:        token.NewTokenBag(true),
+		Owner:           username,
+		Name:            gameName,
+		TokenBag:        token.NewTokenBag(true),
 		events:          make(chan struct{}),
 		done:            make(chan struct{}),
 		readyChan:       make(chan struct{}),
-		playerUsernames: map[string]struct{}{},
-		invitedUsers:    map[string]struct{}{},
+		PlayerUsernames: map[string]struct{}{},
+		InvitedUsers:    map[string]struct{}{},
 	}
 	g.AddPlayer(username)
 	return g
@@ -55,16 +54,12 @@ func NewGame(id uuid.UUID, username string, gameName string) *Game {
 
 func (g *Game) AllPlayersOutOfCards() bool {
 	out := 0
-	for _, player := range g.players {
+	for _, player := range g.Players {
 		if player.OutOfCards() {
 			out++
 		}
 	}
-	return out == len(g.players)
-}
-
-func (g *Game) Name() string {
-	return g.name
+	return out == len(g.Players)
 }
 
 func (g *Game) Start() error {
@@ -73,33 +68,33 @@ func (g *Game) Start() error {
 		return nil
 	case <-time.After(time.Second):
 	}
-	switch len(g.playerUsernames) {
+	switch len(g.PlayerUsernames) {
 	case 2, 3, 4:
 	default:
 		return fmt.Errorf("invalid number of players")
 	}
 
 	usernames := []string{}
-	for username := range g.playerUsernames {
+	for username := range g.PlayerUsernames {
 		usernames = append(usernames, username)
 	}
 	sort.Strings(usernames)
 
 	c := Purple
 	for _, user := range usernames {
-		g.players = append(g.players, NewPlayer(user, len(g.playerUsernames), c))
+		g.Players = append(g.Players, NewPlayer(user, len(g.PlayerUsernames), c))
 		c = 1 << c
 	}
 
-	for _, p := range g.players {
+	for _, p := range g.Players {
 		logger.Games(p.Username, p.Color)
 	}
-	tk := g.tokenBag.TakeNextToken()
+	tk := g.TokenBag.TakeNextToken()
 	logger.AtLevel(logger.LBoard|logger.LGames|logger.LToken, fmt.Sprintf("Token %v retrived from bag", tk))
-	g.board = NewBoard(tk, g)
+	g.Board = NewBoard(tk, g)
 	go func() {
 		for range g.events {
-			for _, p := range g.players {
+			for _, p := range g.Players {
 				p := p
 				go func() {
 					select {
@@ -122,22 +117,22 @@ func (g *Game) Started() bool {
 }
 
 func (g *Game) AddPlayer(username string) error {
-	if len(g.playerUsernames) > 3 {
+	if len(g.PlayerUsernames) > 3 {
 		return errors.New("game already has 4 players")
 	}
 
 	logger.Gamesf("Adding user to game: %s %s", g.id, username)
-	g.playerUsernames[username] = struct{}{}
-	delete(g.invitedUsers, username)
+	g.PlayerUsernames[username] = struct{}{}
+	delete(g.InvitedUsers, username)
 	return nil
 }
 
 func (g *Game) InvitePlayer(username string) {
-	g.invitedUsers[username] = struct{}{}
+	g.InvitedUsers[username] = struct{}{}
 }
 
 func (g *Game) HasPlayer(username string) bool {
-	for uname := range g.playerUsernames {
+	for uname := range g.PlayerUsernames {
 		logger.Gamesf("Checking if user is in game: %s %q", g.id, uname)
 		if uname == username {
 			return true
@@ -146,12 +141,12 @@ func (g *Game) HasPlayer(username string) bool {
 	return false
 }
 func (g *Game) HasInvitedUser(username string) bool {
-	_, ok := g.invitedUsers[username]
+	_, ok := g.InvitedUsers[username]
 	return ok
 }
 
 func (g *Game) IsOwner(username string) bool {
-	return g.owner == username
+	return g.Owner == username
 }
 
 func (g *Game) End() {
@@ -159,7 +154,7 @@ func (g *Game) End() {
 }
 
 func (g *Game) ToggleHints(username string) {
-	for _, p := range g.players {
+	for _, p := range g.Players {
 		if p.Username == username {
 			p.HintsOn = !p.HintsOn
 		}
@@ -174,7 +169,7 @@ func (g *Game) GetID() uuid.UUID {
 
 func (g *Game) GetHand(username string) []GardenCard {
 	logger.Gamesln("Getting hand for", username)
-	for _, player := range g.players {
+	for _, player := range g.Players {
 		if player.Username == username {
 			return player.Hand
 		}
@@ -183,25 +178,25 @@ func (g *Game) GetHand(username string) []GardenCard {
 }
 
 func (g *Game) NextPlayer() error {
-	if g.board.GameOver() {
+	if g.Board.GameOver() {
 		return errors.New("game is over")
 	}
 
-	if err := g.board.MustPlayToken(); err != nil {
+	if err := g.Board.MustPlayToken(); err != nil {
 		return fmt.Errorf("current player must place a token: %w", err)
 	}
 
 	g.activePlayer().CardNotPlayed()
-	g.activePlayerCursor += 1
+	g.ActivePlayerCursor += 1
 	g.events <- struct{}{}
 	return nil
 }
 
 func (g *Game) MustPlayTokens() []position.Position {
-	if g.board.MustPlayToken() == nil {
+	if g.Board.MustPlayToken() == nil {
 		return nil
 	}
-	return g.board.GetTokensMustPlay()
+	return g.Board.GetTokensMustPlay()
 }
 
 func (g *Game) PlayCard(username string, card uuid.UUID, position position.Position) error {
@@ -219,7 +214,7 @@ func (g *Game) PlayCard(username string, card uuid.UUID, position position.Posit
 		return fmt.Errorf("player has already gone")
 	}
 
-	if err := g.board.PlayCard(position, cardToPlay); err != nil {
+	if err := g.Board.PlayCard(position, cardToPlay); err != nil {
 		return fmt.Errorf("error playing card: %w", err)
 	}
 
@@ -228,30 +223,15 @@ func (g *Game) PlayCard(username string, card uuid.UUID, position position.Posit
 		return fmt.Errorf("error playing card: %w", err)
 	}
 
-	//XXX make rest api for this and ui calls / clicks
-	tokenPositions := g.board.GetTokensMustPlay()
-	if g.AutoToken {
-		for _, tokenPosition := range tokenPositions {
-			tks := g.tokenBag.GetTokens(1)
-			if tks == nil {
-				return fmt.Errorf("no tokens available")
-			}
-			err = g.PlayToken(username, tks[0].ID, tokenPosition)
-			if err != nil {
-				return fmt.Errorf("failed to play token: %w", err)
-			}
-		}
-	}
-
 	return nil
 }
 
 func (g *Game) activePlayer() *Player {
-	return g.players[g.activePlayerCursor%len(g.players)]
+	return g.Players[g.ActivePlayerCursor%len(g.Players)]
 }
 
 func (g *Game) GetNextTokenID() *uuid.UUID {
-	tokens := g.tokenBag.GetTokens(1)
+	tokens := g.TokenBag.GetTokens(1)
 
 	if tokens == nil {
 		// This is endgame condition need to handle this
@@ -266,16 +246,16 @@ func (g *Game) PlayToken(username string, tokenID uuid.UUID, position position.P
 		return fmt.Errorf("it is not %q turn", username)
 	}
 
-	if !g.tokenBag.HasToken(tokenID) {
+	if !g.TokenBag.HasToken(tokenID) {
 		return fmt.Errorf("token not found. Was it already played?")
 	}
 
-	tk := g.tokenBag.GetToken(tokenID)
+	tk := g.TokenBag.GetToken(tokenID)
 	if tk == nil {
 		return fmt.Errorf("token was nil when retrieved")
 	}
 
-	if err := g.board.PlayToken(position, tk); err != nil {
+	if err := g.Board.PlayToken(position, tk); err != nil {
 		return fmt.Errorf("failed to play token: %w", err)
 	}
 
@@ -290,15 +270,15 @@ type FlusherWriter interface {
 
 func (g *Game) Render(c context.Context, w FlusherWriter, username string) error {
 	var playerToRenderFor *Player
-	for _, player := range g.players {
+	for _, player := range g.Players {
 		if player.Username == username {
 			playerToRenderFor = player
 		}
 	}
 
 	if playerToRenderFor == nil {
-		_, isjoined := g.playerUsernames[username]
-		_, invited := g.invitedUsers[username]
+		_, isjoined := g.PlayerUsernames[username]
+		_, invited := g.InvitedUsers[username]
 		if !invited && !isjoined {
 			return fmt.Errorf("player %q not found", username)
 		}
@@ -316,7 +296,7 @@ func (g *Game) Render(c context.Context, w FlusherWriter, username string) error
 			case <-timer:
 				return fmt.Errorf("player not found or game not started")
 			case <-g.readyChan:
-				for _, player := range g.players {
+				for _, player := range g.Players {
 					if player.Username == username {
 						playerToRenderFor = player
 					}
@@ -335,7 +315,7 @@ func (g *Game) Render(c context.Context, w FlusherWriter, username string) error
 
 	logger.Gamesln("Starting render for", playerToRenderFor.Username)
 
-	err := g.board.Render(w, playerToRenderFor, g)
+	err := g.Board.Render(w, playerToRenderFor, g)
 	if err != nil {
 		logger.Gamesf("Failed to render for %s: %v", playerToRenderFor.Username, err)
 		fmt.Fprintf(w, "data: error %q\n\n", err.Error())
@@ -352,7 +332,7 @@ func (g *Game) Render(c context.Context, w FlusherWriter, username string) error
 			logger.Gamesf("Player %q just disconnected", playerToRenderFor.Username)
 			return nil
 		case <-playerToRenderFor.Events:
-			err := g.board.Render(w, playerToRenderFor, g)
+			err := g.Board.Render(w, playerToRenderFor, g)
 			if err != nil {
 				logger.Gamesf("Failed to render for %s: %v", playerToRenderFor.Username, err)
 				fmt.Fprintf(w, "data: error %q\n\n", err.Error())

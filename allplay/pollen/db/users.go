@@ -13,12 +13,6 @@ import (
 	"github.com/hibooboo2/ggames/allplay/pollen/constants"
 )
 
-var (
-	users    = map[string][32]byte{}
-	sessions = map[string]*UserSession{}
-	tempIDs  = map[string]struct{}{}
-)
-
 type UserSession struct {
 	ID       string
 	Username string
