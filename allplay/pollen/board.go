@@ -306,6 +306,7 @@ func (b *Board) Render(w io.Writer, p *Player, g *Game) error {
 		HintsOn                bool
 		Scores                 *GameScore
 		GameOver               bool
+		Players                []*Player
 	}{
 		Cards:                  b.cards,
 		Tokens:                 b.tokens,
@@ -320,6 +321,7 @@ func (b *Board) Render(w io.Writer, p *Player, g *Game) error {
 		HintsOn:                p.HintsOn,
 		Scores:                 b.Scores,
 		GameOver:               b.GameOver(),
+		Players:                g.players,
 	})
 	if err != nil {
 		return err

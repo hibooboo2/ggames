@@ -9,9 +9,11 @@ p {
 
 .center {
     background-color: red;
-    position: relative;
+    position: fixed;
     left: 50%;
     top: 50%;
+    margin-bottom: 50%;
+    margin-right: 50%;
 }
 
 .scores {
@@ -54,6 +56,7 @@ p {
     width: 75px;
     height: 75px;
     opacity: 0.75;
+    cursor: move;
 }
 
 .handCard:hover {
@@ -139,4 +142,8 @@ p {
     border-color: rgb(227, 190, 35);
     border-image: initial;
     border-radius: 4px;
+}
+
+.info {
+    position: fixed;
 }
