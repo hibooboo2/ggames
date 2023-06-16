@@ -293,6 +293,10 @@ func (b *Board) Render(w io.Writer, p *Player, g *Game) error {
 
 	buff := bytes.NewBuffer(nil)
 	tokensMustPlay := b.GetTokensMustPlay()
+	nextTokens := len(tokensMustPlay)
+	if nextTokens == 0 {
+		nextTokens = 1
+	}
 	err = boardTmpl.ExecuteTemplate(buff, "board", struct {
 		Cards                  map[position.Position]*cards.GardenCard
 		Tokens                 map[position.Position]*token.PollinatorToken
@@ -313,7 +317,7 @@ func (b *Board) Render(w io.Writer, p *Player, g *Game) error {
 		Tokens:                 b.tokens,
 		PlayableCards:          b.CardLocationsPlayable(),
 		PlayableTokenPositions: tokensMustPlay,
-		TokensCanPlay:          g.TokenBag.GetTokens(len(tokensMustPlay)),
+		TokensCanPlay:          g.TokenBag.GetTokens(nextTokens),
 		Debug:                  false,
 		Player:                 p,
 		GameID:                 g.id.String(),

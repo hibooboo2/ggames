@@ -25,9 +25,9 @@
         <div class="board">
             <button class="right" id="hintsToggle" onclick='toggleHints("{{ $gameID }}")'>
                 {{ if .HintsOn }}
-                    Turn hints on
-                {{ else }}
                     Turn hints off
+                {{ else }}
+                    Turn hints on
                 {{ end }}
             </button>
             {{ if .Scores }}

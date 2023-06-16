@@ -124,11 +124,13 @@ func (t TokenType) Color() string {
 }
 
 type TokenBag struct {
-	tokens map[uuid.UUID]*PollinatorToken
+	tokens     map[uuid.UUID]*PollinatorToken
+	nextTokens map[uuid.UUID]*PollinatorToken
+	l          sync.Mutex
 }
 
 func NewTokenBag(shuffle bool) *TokenBag {
-	tb := &TokenBag{map[uuid.UUID]*PollinatorToken{}}
+	tb := &TokenBag{map[uuid.UUID]*PollinatorToken{}, map[uuid.UUID]*PollinatorToken{}, sync.Mutex{}}
 	tks := createPollinatorTokens(tb)
 	for _, tk := range tks {
 		_, duplicateID := tb.tokens[tk.ID]
@@ -146,14 +148,35 @@ func (tb *TokenBag) OutOfTokens() bool {
 }
 
 func (tb *TokenBag) TakeNextToken() *PollinatorToken {
+	tb.l.Lock()
+	if len(tb.nextTokens) > 0 {
+		for _, tk := range tb.nextTokens {
+			tb.l.Unlock()
+			return tk
+		}
+	}
+	tb.l.Unlock()
 	tks := tb.GetTokens(1)
 	if len(tks) == 0 {
 		return nil
 	}
+	tb.nextTokens[tks[0].ID] = tks[0]
 	return tks[0]
 }
 
 func (tb *TokenBag) GetTokens(n int) []*PollinatorToken {
+	tb.l.Lock()
+	defer tb.l.Unlock()
+	tks := []*PollinatorToken{}
+	if len(tb.nextTokens) > 0 && n <= len(tb.nextTokens) {
+		for _, tk := range tb.nextTokens {
+			tks = append(tks, tk)
+			if len(tks) == n {
+				return tks
+			}
+		}
+	}
+
 	if n == 0 {
 		return nil
 	}
@@ -165,7 +188,7 @@ func (tb *TokenBag) GetTokens(n int) []*PollinatorToken {
 	if len(tb.tokens) < n {
 		n = len(tb.tokens)
 	}
-	tks := make([]*PollinatorToken, 0, n)
+	tks = make([]*PollinatorToken, 0, n)
 	i := 0
 	for _, tk := range tb.tokens {
 		if tk.IsUsed() {
@@ -173,6 +196,8 @@ func (tb *TokenBag) GetTokens(n int) []*PollinatorToken {
 		}
 		tks = append(tks, tk)
 		i++
+		tb.nextTokens[tk.ID] = tk
+		delete(tb.tokens, tk.ID)
 		if i == n {
 			break
 		}
@@ -181,7 +206,9 @@ func (tb *TokenBag) GetTokens(n int) []*PollinatorToken {
 }
 
 func (tb *TokenBag) GetToken(tokenID uuid.UUID) *PollinatorToken {
-	for _, t := range tb.tokens {
+	tb.l.Lock()
+	defer tb.l.Unlock()
+	for _, t := range tb.nextTokens {
 		if t.ID == tokenID {
 			return t
 		}
@@ -190,16 +217,24 @@ func (tb *TokenBag) GetToken(tokenID uuid.UUID) *PollinatorToken {
 }
 
 func (tb *TokenBag) ConsumeToken(tokenID uuid.UUID) {
+	tb.l.Lock()
+	defer tb.l.Unlock()
 	logger.AtLevelf(logger.LBoard|logger.LPosition|logger.LToken, "%s trying to consume", tokenID)
 	_, ok := tb.tokens[tokenID]
-	if !ok {
-		panic("token already consumed")
+	if ok {
+		panic("token must be a next token")
 	}
-	delete(tb.tokens, tokenID)
+	_, ok = tb.nextTokens[tokenID]
+	if !ok {
+		panic("token not a next token")
+	}
+	delete(tb.nextTokens, tokenID)
 }
 
 func (tb *TokenBag) HasToken(tokenID uuid.UUID) bool {
-	_, has := tb.tokens[tokenID]
+	tb.l.Lock()
+	defer tb.l.Unlock()
+	_, has := tb.nextTokens[tokenID]
 	return has
 }
 
