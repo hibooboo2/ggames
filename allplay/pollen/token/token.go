@@ -94,9 +94,9 @@ func (t TokenType) Image() string {
 	case BeeButterflyToken:
 		return "Token_BeeButterfly.jpg"
 	case JunebugButterFlyToken:
-		return "Token_JunebugButterFly.jpg"
+		return "Token_JunebugButterfly.jpg"
 	case BeeJunebugButterFlyToken:
-		return "Token_BeeJunebugButterFly.jpg"
+		return "Token_BeeJunebugButterfly.jpg"
 	default:
 		panic("unknown token type")
 	}
