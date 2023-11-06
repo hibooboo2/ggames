@@ -311,7 +311,7 @@ func (b *Board) Render(w io.Writer, p *Player, g *Game) error {
 		HintsOn                bool
 		Scores                 *GameScore
 		GameOver               bool
-		Players                []*Player
+		Players                map[string]*Player
 	}{
 		Cards:                  b.cards,
 		Tokens:                 b.tokens,

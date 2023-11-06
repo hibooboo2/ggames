@@ -23,19 +23,20 @@ func init() {
 }
 
 type Game struct {
-	id                 uuid.UUID
-	Name               string
-	Owner              string
-	Players            []*Player
-	InvitedUsers       map[string]struct{}
-	PlayerUsernames    map[string]struct{}
-	ActivePlayerCursor int
-	TokenBag           *token.TokenBag
-	Board              *Board
-	events             chan struct{}
-	done               chan struct{}
-	started            bool
-	readyChan          chan struct{}
+	id              uuid.UUID
+	Name            string
+	Owner           string
+	Players         map[string]*Player
+	PlayersArray    []string
+	InvitedUsers    map[string]struct{}
+	PlayerUsernames map[string]struct{}
+	ActivePlayer    int
+	TokenBag        *token.TokenBag
+	Board           *Board
+	events          chan struct{}
+	done            chan struct{}
+	started         bool
+	readyChan       chan struct{}
 }
 
 func NewGame(id uuid.UUID, username string, gameName string) *Game {
@@ -48,6 +49,7 @@ func NewGame(id uuid.UUID, username string, gameName string) *Game {
 		done:            make(chan struct{}),
 		readyChan:       make(chan struct{}),
 		PlayerUsernames: map[string]struct{}{},
+		Players:         map[string]*Player{},
 		InvitedUsers:    map[string]struct{}{},
 	}
 	g.AddPlayer(username)
@@ -76,15 +78,14 @@ func (g *Game) Start() error {
 		return fmt.Errorf("invalid number of players")
 	}
 
-	usernames := []string{}
 	for username := range g.PlayerUsernames {
-		usernames = append(usernames, username)
+		g.PlayersArray = append(g.PlayersArray, username)
 	}
-	sort.Strings(usernames)
+	sort.Strings(g.PlayersArray)
 
 	c := colors.Purple
-	for _, user := range usernames {
-		g.Players = append(g.Players, NewPlayer(user, len(g.PlayerUsernames), c))
+	for _, user := range g.PlayersArray {
+		g.Players[user] = NewPlayer(user, len(g.PlayerUsernames), c)
 		c = 1 << c
 	}
 
@@ -156,12 +157,9 @@ func (g *Game) End() {
 }
 
 func (g *Game) ToggleHints(username string) {
-	for _, p := range g.Players {
-		if p.Username == username {
-			p.HintsOn = !p.HintsOn
-		}
-	}
-	logger.Gamesf("Hints toggled for user: %s", username)
+	p := g.Players[username]
+	p.HintsOn = !p.HintsOn
+	logger.Gamesf("Hints t	oggled for user: %s", username)
 	g.events <- struct{}{}
 }
 
@@ -189,7 +187,7 @@ func (g *Game) NextPlayer() error {
 	}
 
 	g.activePlayer().CardNotPlayed()
-	g.ActivePlayerCursor += 1
+	g.ActivePlayer++
 	g.events <- struct{}{}
 	return nil
 }
@@ -229,7 +227,7 @@ func (g *Game) PlayCard(username string, card uuid.UUID, position position.Posit
 }
 
 func (g *Game) activePlayer() *Player {
-	return g.Players[g.ActivePlayerCursor%len(g.Players)]
+	return g.Players[g.PlayersArray[g.ActivePlayer%len(g.PlayersArray)]]
 }
 
 func (g *Game) GetNextTokenID() *uuid.UUID {

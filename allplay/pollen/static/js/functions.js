@@ -85,8 +85,8 @@ function playCard(gameID, cardID, x, y) {
         console.log(req.responseText)
         cardToPlay = ""
     }
-    //         /game/{ { $gameid } } /play/card / {{ $gameid }
-    // }?position = {{ $position.X }}: { { $position.Y } }
+    //         /game/{ { $gameid } } /play/card / {{ $gameid }}
+    // ?position = {{ $position.X }}: { { $position.Y } }
 }
 
 var cardToPlay = ""
@@ -135,8 +135,8 @@ function playToken(gameID, x, y) {
         console.log(req.responseText)
         tokenToPlay = ""
     }
-    //         /game/{ { $gameid } } /play/card / {{ $gameid }
-    // }?position = {{ $position.X }}: { { $position.Y } }
+    //         /game/{ { $gameid } } /play/card / {{ $gameid }}
+    // ?position = {{ $position.X }}: { { $position.Y } }
 }
 
 function toggleHints(gameID) {
